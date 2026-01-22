@@ -80,50 +80,69 @@
         }
 
         /* Standard greyhound box colors */
+        /* Standard Australian Greyhound Box Colors */
         .box-1 {
             background: #ef4444;
+            /* Red */
         }
 
-        /* Red */
         .box-2 {
-            background: #3b82f6;
+            background: repeating-linear-gradient(180deg,
+                    #000000,
+                    #000000 5px,
+                    #ffffff 5px,
+                    #ffffff 10px);
+            color: #ffffff;
+            text-shadow: 1px 1px 0 #000;
         }
 
-        /* Blue */
         .box-3 {
             background: #ffffff;
-            color: #000;
+            /* White */
+            color: #000000;
         }
 
-        /* White */
         .box-4 {
-            background: #000000;
+            background: #2563eb;
+            /* Blue */
         }
 
-        /* Black */
         .box-5 {
-            background: #f59e0b;
+            background: #eab308;
+            /* Yellow */
+            color: #000000;
         }
 
-        /* Orange/Yellow */
         .box-6 {
-            background: #000000;
-            border: 2px solid #ffffff;
+            background: #16a34a;
+            /* Green */
         }
 
-        /* Black/White stripes (approximated) */
         .box-7 {
-            background: #ef4444;
-            border: 2px solid #ffffff;
+            background: #000000;
+            /* Black */
         }
 
-        /* Red/White stripes (approximated) */
         .box-8 {
-            background: #fbbf24;
-            color: #000;
+            background: #ec4899;
+            /* Pink */
         }
 
-        /* Yellow */
+        .box-9 {
+            background: repeating-linear-gradient(45deg,
+                    #16a34a,
+                    #16a34a 5px,
+                    #ffffff 5px,
+                    #ffffff 10px);
+            color: #000000;
+            text-shadow: 0 0 2px #fff;
+        }
+
+        .box-10 {
+            background: linear-gradient(to right, #ef4444 33%, #ffffff 33%, #ffffff 66%, #2563eb 66%);
+            color: #000000;
+            text-shadow: 0 0 2px #fff;
+        }
 
         /* Responsive grid */
         @media (min-width: 768px) {
