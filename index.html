@@ -141,7 +141,7 @@
     <!-- Header -->
     <header class="bg-zinc-900/90 backdrop-blur-lg border-b border-zinc-800 sticky top-0 z-50">
         <div class="container mx-auto px-4 py-4">
-            <h1 class="text-2xl md:text-3xl font-bold text-center">
+            <h1 class="text-xl md:text-3xl font-bold text-center">
                 🐕 Greyhound Micro-Field Finder
             </h1>
             <p class="text-center text-zinc-500 text-sm mt-1">
@@ -346,21 +346,21 @@
                 const boxClass = `box-${runner.box_number}`;
 
                 return `
-                    <div class="flex items-center justify-between py-2 border-b border-white/10 last:border-0 ${scratchedClass}">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full ${boxClass} flex items-center justify-center font-bold text-sm">
+                    <div class="flex items-center justify-between py-1.5 md:py-2 border-b border-white/10 last:border-0 ${scratchedClass}">
+                        <div class="flex items-center gap-2 md:gap-3">
+                            <div class="w-6 h-6 md:w-8 md:h-8 rounded-full ${boxClass} flex items-center justify-center font-bold text-xs md:text-sm">
                                 ${runner.box_number}
                             </div>
-                            <div class="font-semibold">${runner.dog_name}</div>
+                            <div class="font-semibold text-sm md:text-base">${runner.dog_name}</div>
                         </div>
-                        <div class="flex gap-4 items-center">
+                        <div class="flex gap-2 md:gap-4 items-center">
                             <div class="text-right">
-                                <div class="text-xs text-white/60">GHR</div>
-                                <div class="font-bold text-base">${ghrOddsText}</div>
+                                <div class="text-[10px] md:text-xs text-white/60">GHR</div>
+                                <div class="font-bold text-sm md:text-base">${ghrOddsText}</div>
                             </div>
                             <div class="text-right">
-                                <div class="text-xs text-white/60">SB</div>
-                                <div class="font-bold text-lg text-blue-400">${sbOddsText}</div>
+                                <div class="text-[10px] md:text-xs text-white/60">SB</div>
+                                <div class="font-bold text-base md:text-lg text-blue-400">${sbOddsText}</div>
                             </div>
                         </div>
                     </div>
@@ -368,23 +368,23 @@
             }).join('');
 
             return `
-                <div class="${cardClass} rounded-2xl p-5 text-white transform transition hover:scale-[1.02]">
-                    <div class="flex items-start justify-between mb-4">
+                <div class="${cardClass} rounded-2xl p-3 md:p-5 text-white transform transition hover:scale-[1.02]">
+                    <div class="flex items-start justify-between mb-2 md:mb-4">
                         <div>
-                            <div class="text-xs ${badgeColor} px-3 py-1 rounded-full inline-block mb-2 font-bold">
+                            <div class="text-[10px] md:text-xs ${badgeColor} px-2 md:px-3 py-0.5 md:py-1 rounded-full inline-block mb-1 md:mb-2 font-bold">
                                 ${badgeText}
                             </div>
-                            <h2 class="text-xl font-bold">${race.meeting_name} - Race ${race.race_number}</h2>
+                            <h2 class="text-lg md:text-xl font-bold leading-tight">${race.meeting_name} - Race ${race.race_number}</h2>
                         </div>
-                        <div class="text-right">
-                            <div class="text-2xl font-bold">
+                        <div class="text-right pl-2">
+                            <div class="text-lg md:text-2xl font-bold whitespace-nowrap">
                                 ${formatDateLabel(race.race_time)}
                             </div>
                         </div>
                     </div>
                     
-                    <div class="bg-black/20 rounded-xl p-4 backdrop-blur-sm">
-                        <div class="text-sm text-white/90 mb-3 font-bold uppercase tracking-wide">
+                    <div class="bg-black/20 rounded-xl p-3 md:p-4 backdrop-blur-sm">
+                        <div class="text-xs md:text-sm text-white/90 mb-2 md:mb-3 font-bold uppercase tracking-wide">
                             ${race.active_runner_count} RUNNERS
                         </div>
                         ${runnersHTML}
