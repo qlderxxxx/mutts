@@ -267,6 +267,85 @@ def count_active_runners(runner_elements) -> tuple[int, List[Dict]]:
     return active_count, active_runners
 
 
+def scrape_meeting_results(meeting_url: str, meeting_name: str) -> List[Dict]:
+    """Scrape race results from a specific meeting's results page"""
+    results = []
+    
+    # Convert fields URL to results URL
+    # e.g., /form-guides/angle-park/fields/250176/ -> /results/angle-park/250176/
+    results_url = meeting_url.replace('/form-guides/', '/results/').replace('/fields/', '/')
+    
+    soup = fetch_page(results_url)
+    if not soup:
+        print(f"Could not fetch results for {meeting_name}")
+        return results
+    
+    # Find all result tables (one per race)
+    result_tables = soup.select('table.results-event__table')
+    print(f"Found {len(result_tables)} result tables for {meeting_name}")
+    
+    for table_idx, table in enumerate(result_tables, 1):
+        try:
+            # Get all rows (skip header row)
+            rows = table.select('tr')[1:]  # Skip header
+            
+            race_results = []
+            for row in rows:
+                cells = row.select('td')
+                if len(cells) < 12:
+                    continue
+                
+                # Extract data
+                place_text = cells[0].get_text(strip=True)
+                name_with_box = cells[2].get_text(strip=True)
+                sp_text = cells[11].get_text(strip=True)
+                
+                # Parse place (1, 2, 3, etc.)
+                try:
+                    place = int(place_text)
+                except:
+                    continue  # Skip if not a valid place
+                
+                # Extract box number from name (e.g., "Take A Little(8)" -> 8)
+                box_match = re.search(r'\((\d+)\)', name_with_box)
+                if not box_match:
+                    continue
+                box_number = int(box_match.group(1))
+                
+                # Extract dog name (remove box number)
+                dog_name = re.sub(r'\(\d+\)', '', name_with_box).strip()
+                
+                # Parse SP (e.g., "$3.20" -> 3.20)
+                sp_value = None
+                sp_match = re.search(r'\$?([\d.]+)', sp_text)
+                if sp_match:
+                    try:
+                        sp_value = float(sp_match.group(1))
+                    except:
+                        pass
+                
+                race_results.append({
+                    'race_number': table_idx,
+                    'dog_name': dog_name,
+                    'box_number': box_number,
+                    'finishing_position': place,
+                    'starting_price': sp_value
+                })
+            
+            if race_results:
+                results.append({
+                    'meeting_name': meeting_name,
+                    'race_number': table_idx,
+                    'results': race_results
+                })
+        
+        except Exception as e:
+            print(f"Error parsing results for {meeting_name} R{table_idx}: {e}")
+            continue
+    
+    return results
+
+
 def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
     """Scrape races from a specific meeting's fields page"""
     races = []
@@ -350,6 +429,7 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
             
             race_data = {
                 'meeting_name': meeting_name,
+                'meeting_url': meeting_url,  # Store URL for later results scraping
                 'race_number': race_number,
                 'race_time': race_date,  # Simple date string YYYY-MM-DD
                 'status': 'upcoming',
@@ -475,6 +555,59 @@ def upsert_race_data(race_data: Dict) -> None:
         print(f"Error upserting race data: {e}")
 
 
+def update_race_results(race_results: Dict):
+    """Update race with results data (SP, finishing positions, top_2_in_top_2)"""
+    try:
+        meeting_name = race_results['meeting_name']
+        race_number = race_results['race_number']
+        results = race_results['results']
+        
+        # Find the race in database
+        race_response = supabase.table('races').select('id').eq('meeting_name', meeting_name).eq('race_number', race_number).execute()
+        
+        if not race_response.data:
+            print(f"Race not found in DB: {meeting_name} R{race_number}")
+            return
+        
+        race_id = race_response.data[0]['id']
+        
+        # Update each runner with SP and finishing position
+        for result in results:
+            # Find runner by race_id, dog_name, and box_number
+            runner_response = supabase.table('runners').select('id').eq('race_id', race_id).eq('dog_name', result['dog_name']).eq('box_number', result['box_number']).execute()
+            
+            if runner_response.data:
+                runner_id = runner_response.data[0]['id']
+                supabase.table('runners').update({
+                    'starting_price': result['starting_price'],
+                    'finishing_position': result['finishing_position']
+                }).eq('id', runner_id).execute()
+        
+        # Calculate "Top 2 in Top 2?"
+        # Get top 2 by SP (lowest odds)
+        sorted_by_sp = sorted([r for r in results if r['starting_price'] is not None], key=lambda x: x['starting_price'])
+        if len(sorted_by_sp) >= 2:
+            top_2_favorites = {sorted_by_sp[0]['box_number'], sorted_by_sp[1]['box_number']}
+            
+            # Get top 2 finishers
+            sorted_by_position = sorted(results, key=lambda x: x['finishing_position'])
+            if len(sorted_by_position) >= 2:
+                top_2_finishers = {sorted_by_position[0]['box_number'], sorted_by_position[1]['box_number']}
+                
+                # Check if they match
+                top_2_in_top_2 = top_2_favorites == top_2_finishers
+                
+                # Update race
+                supabase.table('races').update({
+                    'top_2_in_top_2': top_2_in_top_2
+                }).eq('id', race_id).execute()
+                
+                print(f"Updated results: {meeting_name} R{race_number} - Top 2 in Top 2: {top_2_in_top_2}")
+        
+    except Exception as e:
+        print(f"Error updating race results: {e}")
+
+
 def main():
     """Main scraper function"""
     print("=" * 60)
@@ -491,12 +624,39 @@ def main():
     for race in all_races:
         upsert_race_data(race)
     
+    # Scrape results for historical races (yesterday and before)
+    print(f"\n--- Scraping historical results ---")
+    
+    # Get unique meeting URLs from scraped races
+    meeting_urls = {}
+    for race in all_races:
+        # Reconstruct meeting URL from race data
+        # Format: https://www.thegreyhoundrecorder.com.au/form-guides/[track]/fields/[date]/
+        if 'meeting_url' in race:
+            meeting_urls[race['meeting_name']] = race['meeting_url']
+    
+    # For now, let's scrape results from yesterday's meetings
+    # We'll need to modify this to get yesterday's URLs
+    # For testing, let's just try to scrape results from today's meetings
+    # (they won't have results yet, but this tests the structure)
+    
+    all_results = []
+    for meeting_name, meeting_url in meeting_urls.items():
+        results = scrape_meeting_results(meeting_url, meeting_name)
+        all_results.extend(results)
+    
+    # Update database with results
+    print(f"\n--- Updating {len(all_results)} races with results ---")
+    for race_result in all_results:
+        update_race_results(race_result)
+    
     # Summary
     micro_fields = [r for r in all_races if r['active_runner_count'] in [4, 5]]
     print("\n" + "=" * 60)
     print(f"Scraping complete!")
     print(f"Total races: {len(all_races)}")
     print(f"Micro-fields (4-5 runners): {len(micro_fields)}")
+    print(f"Results updated: {len(all_results)} races")
     print("=" * 60)
 
 
