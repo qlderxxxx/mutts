@@ -506,6 +506,7 @@ def upsert_race_data(race_data: Dict) -> None:
         # Prepare race data (without runners)
         race_record = {
             'meeting_name': race_data['meeting_name'],
+            'meeting_url': race_data['meeting_url'],
             'race_number': race_data['race_number'],
             'race_time': race_data['race_time'],
             'status': race_data['status'],
@@ -638,40 +639,30 @@ def main():
     
     # Fetch races from today and yesterday from database
     try:
-        response = supabase.table('races').select('meeting_name, race_number, race_time').in_('race_time', [yesterday_str, today_str]).execute()
+        response = supabase.table('races').select('meeting_name, meeting_url, race_time').gte('race_time', yesterday_str).lte('race_time', today_str).execute()
         races_to_check = response.data
         
         print(f"Found {len(races_to_check)} races from today and yesterday")
         
-        # Group by meeting and date to avoid duplicate scrapes
+        # Group by meeting_url to avoid duplicate scrapes
         meetings_to_scrape = {}
         for race in races_to_check:
+            meeting_url = race.get('meeting_url')
             meeting_name = race['meeting_name']
-            race_date_str = race['race_time'].split('T')[0]  # Get just the date part
             
-            # Create unique key for meeting + date
-            meeting_key = f"{meeting_name}_{race_date_str}"
+            # Skip if no meeting_url (shouldn't happen, but be safe)
+            if not meeting_url:
+                print(f"Warning: No meeting_url for {meeting_name}, skipping results scrape")
+                continue
             
-            if meeting_key not in meetings_to_scrape:
-                # Construct the meeting URL
-                # Convert meeting name to slug (e.g., "Angle Park" -> "angle-park")
-                track_slug = meeting_name.lower().replace(' ', '-')
-                
-                # Get the date ID (DDMMYY format) from the race date
-                race_date = datetime.strptime(race_date_str, '%Y-%m-%d')
-                date_id = race_date.strftime('%d%m%y')
-                
-                meeting_url = f"https://www.thegreyhoundrecorder.com.au/form-guides/{track_slug}/fields/{date_id}/"
-                meetings_to_scrape[meeting_key] = {
-                    'name': meeting_name,
-                    'url': meeting_url
-                }
+            if meeting_url not in meetings_to_scrape:
+                meetings_to_scrape[meeting_url] = meeting_name
         
         # Scrape results for each meeting
         all_results = []
-        for meeting_key, meeting_info in meetings_to_scrape.items():
-            print(f"Scraping results for {meeting_info['name']}...")
-            results = scrape_meeting_results(meeting_info['url'], meeting_info['name'])
+        for meeting_url, meeting_name in meetings_to_scrape.items():
+            print(f"Scraping results for {meeting_name}...")
+            results = scrape_meeting_results(meeting_url, meeting_name)
             all_results.extend(results)
         
         # Update database with results
