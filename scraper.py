@@ -290,12 +290,22 @@ def scrape_meeting_results(meeting_url: str, meeting_name: str) -> List[Dict]:
             page.goto(results_url, wait_until='networkidle', timeout=30000)
             page.wait_for_timeout(2000)
             
-            # Find all race navigation buttons (numbered 1, 2, 3, etc.)
-            all_buttons = page.query_selector_all('button')
-            race_buttons = [btn for btn in all_buttons if btn.text_content() and btn.text_content().strip().isdigit()]
+            # Find all race navigation items
+            # Based on inspection, they are divs with class 'meeting-events-nav__item' inside 'nav.meeting-events-nav'
+            race_nav_items = page.query_selector_all('.meeting-events-nav__item')
+            
+            # Filter to ensure they act like buttons (have numbers)
+            race_buttons = [item for item in race_nav_items if item.text_content() and item.text_content().strip().isdigit()]
             
             num_races = len(race_buttons)
             print(f"Found {num_races} race buttons for {meeting_name}")
+            
+            if num_races == 0:
+                # Fallback: try finding any numbered elements in a nav
+                race_buttons = page.query_selector_all('nav div, nav button, nav a')
+                race_buttons = [btn for btn in race_buttons if btn.text_content() and btn.text_content().strip().isdigit() and int(btn.text_content().strip()) <= 15]
+                num_races = len(race_buttons)
+                print(f"Fallback found {num_races} race buttons")
             
             if num_races == 0:
                 # No race buttons, just scrape current page
@@ -306,29 +316,43 @@ def scrape_meeting_results(meeting_url: str, meeting_name: str) -> List[Dict]:
                 
                 if table:
                     race_data = parse_result_table(table, meeting_name, 1)
-                    if race_data and not all_sps_zero(race_data):
+                    if race_data:
                         results.append(race_data)
-                    elif all_sps_zero(race_data):
-                        print(f"  Skipping {meeting_name} - all SPs are $0")
                 
                 browser.close()
                 return results
             
             # Click through each race button
-            all_races_have_zero_sp = True
-            
             for i in range(num_races):
                 try:
                     # Re-query buttons (DOM might update)
-                    current_buttons = page.query_selector_all('button')
-                    current_race_buttons = [btn for btn in current_buttons if btn.text_content() and btn.text_content().strip().isdigit()]
+                    race_nav_items = page.query_selector_all('.meeting-events-nav__item')
+                    current_race_buttons = [item for item in race_nav_items if item.text_content() and item.text_content().strip().isdigit()]
+                    
+                    if not current_race_buttons:
+                         # Fallback re-query
+                         race_nav_items = page.query_selector_all('nav div, nav button, nav a')
+                         current_race_buttons = [btn for btn in race_nav_items if btn.text_content() and btn.text_content().strip().isdigit() and int(btn.text_content().strip()) <= 15]
                     
                     if i < len(current_race_buttons):
-                        race_num = current_race_buttons[i].text_content().strip()
+                        button = current_race_buttons[i]
+                        race_num = button.text_content().strip()
                         print(f"  Clicking race {race_num}...")
                         
-                        current_race_buttons[i].click()
-                        page.wait_for_timeout(1500)
+                        # Check if clickable (might be disabled if active)
+                        # We can try to click, if it fails, we assume it's active and page is already showing it?
+                        # No, if we iterate 1..12, we need to click 1, then 2, etc.
+                        # If 1 is active, clicking might do nothing.
+                        # But we need to ensure we are ON race 1.
+                        
+                        try:
+                            # Force click or just click
+                            button.click(timeout=2000)
+                            page.wait_for_timeout(1500)
+                        except Exception as click_err:
+                            # If click fails (e.g. pointer-events: none), it might be the active one
+                            print(f"    Click validation: {click_err} (might be active race)")
+                            pass
                         
                         # Get updated content
                         html = page.content()
@@ -339,23 +363,14 @@ def scrape_meeting_results(meeting_url: str, meeting_name: str) -> List[Dict]:
                         if table:
                             race_data = parse_result_table(table, meeting_name, int(race_num))
                             if race_data:
-                                if not all_sps_zero(race_data):
-                                    all_races_have_zero_sp = False
-                                    results.append(race_data)
-                                    print(f"    -> Scraped {len(race_data['results'])} runners")
-                                else:
-                                    print(f"    -> Race {race_num} has all $0 SPs, skipping")
+                                results.append(race_data)
+                                print(f"    -> Scraped {len(race_data['results'])} runners")
                 
                 except Exception as e:
                     print(f"  Error scraping race {i+1}: {e}")
                     continue
             
             browser.close()
-            
-            # If ALL races had $0 SPs, return empty (skip this meeting)
-            if all_races_have_zero_sp and num_races > 0:
-                print(f"Skipping {meeting_name} - all races have $0 SPs")
-                return []
             
         except Exception as e:
             print(f"Error with Playwright for {meeting_name}: {e}")
