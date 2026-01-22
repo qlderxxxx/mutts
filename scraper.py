@@ -99,8 +99,14 @@ def fetch_page(url: str) -> Optional[BeautifulSoup]:
                 # 2. Go to target
                 page.goto(url, timeout=60000, wait_until='domcontentloaded')
                 
-                # 3. Wait for content with generous timeout for WAF
-                page.wait_for_selector('h2.meeting-list__title', timeout=20000)
+                # 3. Wait for content to load
+                # On meeting pages, we look for the race header or title
+                try:
+                    page.wait_for_selector('.form-guide-field-event__header', timeout=5000)
+                except:
+                    # Fallback to just wait for body if specific element missing
+                    page.wait_for_selector('body', timeout=5000)
+                
                 print("Content loaded successfully!")
                 
             except Exception as e:
