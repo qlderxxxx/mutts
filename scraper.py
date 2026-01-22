@@ -625,31 +625,64 @@ def main():
     for race in all_races:
         upsert_race_data(race)
     
-    # Scrape results for historical races (yesterday and before)
+    # Scrape results for historical races (today and yesterday)
     print(f"\n--- Scraping historical results ---")
     
-    # Get unique meeting URLs from scraped races
-    meeting_urls = {}
-    for race in all_races:
-        # Reconstruct meeting URL from race data
-        # Format: https://www.thegreyhoundrecorder.com.au/form-guides/[track]/fields/[date]/
-        if 'meeting_url' in race:
-            meeting_urls[race['meeting_name']] = race['meeting_url']
+    # Calculate today and yesterday's dates
+    today = datetime.now(AEST)
+    yesterday = today - timedelta(days=1)
+    today_str = today.strftime('%Y-%m-%d')
+    yesterday_str = yesterday.strftime('%Y-%m-%d')
     
-    # For now, let's scrape results from yesterday's meetings
-    # We'll need to modify this to get yesterday's URLs
-    # For testing, let's just try to scrape results from today's meetings
-    # (they won't have results yet, but this tests the structure)
+    print(f"Fetching races from {yesterday_str} and {today_str} to scrape results...")
     
-    all_results = []
-    for meeting_name, meeting_url in meeting_urls.items():
-        results = scrape_meeting_results(meeting_url, meeting_name)
-        all_results.extend(results)
+    # Fetch races from today and yesterday from database
+    try:
+        response = supabase.table('races').select('meeting_name, race_number, race_time').in_('race_time', [yesterday_str, today_str]).execute()
+        races_to_check = response.data
+        
+        print(f"Found {len(races_to_check)} races from today and yesterday")
+        
+        # Group by meeting and date to avoid duplicate scrapes
+        meetings_to_scrape = {}
+        for race in races_to_check:
+            meeting_name = race['meeting_name']
+            race_date_str = race['race_time'].split('T')[0]  # Get just the date part
+            
+            # Create unique key for meeting + date
+            meeting_key = f"{meeting_name}_{race_date_str}"
+            
+            if meeting_key not in meetings_to_scrape:
+                # Construct the meeting URL
+                # Convert meeting name to slug (e.g., "Angle Park" -> "angle-park")
+                track_slug = meeting_name.lower().replace(' ', '-')
+                
+                # Get the date ID (DDMMYY format) from the race date
+                race_date = datetime.strptime(race_date_str, '%Y-%m-%d')
+                date_id = race_date.strftime('%d%m%y')
+                
+                meeting_url = f"https://www.thegreyhoundrecorder.com.au/form-guides/{track_slug}/fields/{date_id}/"
+                meetings_to_scrape[meeting_key] = {
+                    'name': meeting_name,
+                    'url': meeting_url
+                }
+        
+        # Scrape results for each meeting
+        all_results = []
+        for meeting_key, meeting_info in meetings_to_scrape.items():
+            print(f"Scraping results for {meeting_info['name']}...")
+            results = scrape_meeting_results(meeting_info['url'], meeting_info['name'])
+            all_results.extend(results)
+        
+        # Update database with results
+        print(f"\n--- Updating {len(all_results)} races with results ---")
+        for race_result in all_results:
+            update_race_results(race_result)
+            
+    except Exception as e:
+        print(f"Error fetching/updating historical results: {e}")
+        all_results = []
     
-    # Update database with results
-    print(f"\n--- Updating {len(all_results)} races with results ---")
-    for race_result in all_results:
-        update_race_results(race_result)
     
     # Summary
     micro_fields = [r for r in all_races if r['active_runner_count'] in [4, 5]]
