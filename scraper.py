@@ -329,6 +329,7 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
                 continue
             
             runner_links = table.select('a.form-guide-field-selection__link')
+            print(f"  DEBUG: Found {len(runner_links)} runner links in table for R{race_number}")
             
             # Get the parent tr elements for each link, excluding vacant boxes
             runner_elements = []
@@ -339,6 +340,8 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
                     tr_classes = parent_tr.get('class', [])
                     if 'form-guide-field-selection--vacant' not in tr_classes:
                         runner_elements.append(parent_tr)
+            
+            print(f"  DEBUG: After filtering vacant boxes: {len(runner_elements)} runner elements")
             
             active_count, runners = count_active_runners(runner_elements)
             
