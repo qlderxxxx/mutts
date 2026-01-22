@@ -34,50 +34,84 @@ def fetch_page(url: str) -> Optional[BeautifulSoup]:
     """Fetch and parse a web page using Playwright to bypass WAF"""
     try:
         with sync_playwright() as p:
-            # Launch browser with stealth args
+            # Launch browser in HEADED mode (requires Xvfb on server)
+            # This is significantly harder to detect than headless
             browser = p.chromium.launch(
-                headless=True,
+                headless=False,  # <--- KEY CHANGE: Run "visible"
                 args=[
                     '--disable-blink-features=AutomationControlled',
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
                     '--disable-dev-shm-usage',
+                    '--window-size=1920,1080',
+                    '--start-maximized' # Ensure full screen for realism
                 ]
             )
             
-            # Create context with realistic viewport and user agent
+            # Create context with realistic attributes
             context = browser.new_context(
                 viewport={'width': 1920, 'height': 1080},
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                 locale='en-AU',
-                timezone_id='Australia/Sydney'
+                timezone_id='Australia/Sydney',
+                has_touch=False,
+                is_mobile=False,
+                permissions=['geolocation'],
+                geolocation={'latitude': -33.8688, 'longitude': 151.2093}, # Sydney
             )
             
             page = context.new_page()
             
-            # Mask hydration/webdriver checks
-            page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            # ADVANCED STEALTH INJECTIONS to mask automation
+            stealth_scripts = [
+                # Mask webdriver
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})",
+                # Mock plugins (Headless usually has 0)
+                "Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]})",
+                # Mock languages
+                "Object.defineProperty(navigator, 'languages', {get: () => ['en-AU', 'en-US', 'en']})",
+                # Mock connection
+                "Object.defineProperty(navigator, 'connection', {get: () => ({rtt: 50, download: 10})})",
+                # Pass chrome check
+                "window.chrome = { runtime: {} }",
+                # Mock WebGL vendor (often reveals 'Google Inc.')
+                """
+                const getParameter = WebGLRenderingContext.prototype.getParameter;
+                WebGLRenderingContext.prototype.getParameter = function(parameter) {
+                    if (parameter === 37445) return 'Intel Open Source Technology Center';
+                    if (parameter === 37446) return 'Mesa DRI Intel(R) HD Graphics 620 (Kaby Lake GT2)';
+                    return getParameter(parameter);
+                };
+                """
+            ]
             
-            print(f"Navigating to {url}...")
-            # Go to home page first to set cookies/session if needed
-            if 'form-guides' in url:
-                try:
-                    page.goto("https://www.thegreyhoundrecorder.com.au", timeout=30000)
-                    page.wait_for_timeout(2000) # Wait 2s
-                except:
-                    pass
+            for script in stealth_scripts:
+                page.add_init_script(script)
             
-            page.goto(url, timeout=60000)
+            print(f"Navigating to {url} (Headed Mode)...")
             
-            # Wait for content to load (handling WAF challenge)
             try:
-                # Wait longer for WAF
-                page.wait_for_selector('h2.meeting-list__title', timeout=15000)
-                print("Content loaded successfully")
-            except Exception:
-                print("Timeout waiting for selector, attempting to capture content anyway...")
+                # 1. Visit homepage first
+                if 'form-guides' in url:
+                    page.goto("https://www.thegreyhoundrecorder.com.au", timeout=45000, wait_until='domcontentloaded')
+                    page.wait_for_timeout(3000) # Human pause
+                
+                # 2. Go to target
+                page.goto(url, timeout=60000, wait_until='domcontentloaded')
+                
+                # 3. Wait for content with generous timeout for WAF
+                page.wait_for_selector('h2.meeting-list__title', timeout=20000)
+                print("Content loaded successfully!")
+                
+            except Exception as e:
+                print(f"Navigation/Selector error: {e}")
+                print("Capturing content state anyway...")
             
             content = page.content()
+            
+            # Debug: Screenshot if it fails (stored in memory/logs if we could)
+            # page.screenshot(path="debug_screenshot.png")
+            
             browser.close()
             
             return BeautifulSoup(content, 'lxml')
