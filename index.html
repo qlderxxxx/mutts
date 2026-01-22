@@ -141,15 +141,15 @@
     <!-- Header -->
     <header class="bg-zinc-900/90 backdrop-blur-lg border-b border-zinc-800 sticky top-0 z-50">
         <div class="container mx-auto px-4 py-4">
-            <h1 class="text-xl md:text-3xl font-bold text-center">
+            <h1 class="text-lg md:text-2xl font-bold text-center">
                 🐕 4 Mutt Finder
             </h1>
-            <p class="text-center text-zinc-500 text-sm mt-1">
+            <p class="text-center text-zinc-500 text-xs mt-1">
                 Live tracking of 4 & 5 runners
             </p>
 
             <!-- View Toggles -->
-            <div class="flex justify-center gap-4 mt-6">
+            <div class="flex justify-center gap-2 mt-4">
                 <button id="btnUpcoming" onclick="setView('upcoming')"
                     class="px-4 py-1.5 rounded-full text-sm font-bold bg-white text-black transition">
                     Upcoming
@@ -166,14 +166,28 @@
     <main class="container mx-auto px-4 py-6">
 
         <!-- Stats Bar -->
-        <div class="grid grid-cols-2 gap-4 mb-6">
-            <div class="bg-zinc-900/50 backdrop-blur-lg rounded-xl p-4 border border-zinc-800">
-                <div class="text-3xl font-bold text-red-500" id="microFieldCount">-</div>
-                <div class="text-sm text-zinc-500">4 Runners</div>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+            <!-- 4 Runners -->
+            <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-3 border border-zinc-800">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs font-bold text-zinc-400 uppercase">4 Runners</div>
+                    <div class="text-2xl font-bold text-red-500" id="stats4Total">-</div>
+                </div>
+                <div class="flex justify-between text-xs text-zinc-500 border-t border-zinc-800 pt-2">
+                    <div>Today: <span id="stats4Today" class="text-white font-bold ml-1">-</span></div>
+                    <div>Tmr: <span id="stats4Tomorrow" class="text-white font-bold ml-1">-</span></div>
+                </div>
             </div>
-            <div class="bg-zinc-900/50 backdrop-blur-lg rounded-xl p-4 border border-zinc-800">
-                <div class="text-3xl font-bold text-orange-500" id="opportunityCount">-</div>
-                <div class="text-sm text-zinc-500">5 Runners</div>
+            <!-- 5 Runners -->
+            <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-3 border border-zinc-800">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs font-bold text-zinc-400 uppercase">5 Runners</div>
+                    <div class="text-2xl font-bold text-orange-500" id="stats5Total">-</div>
+                </div>
+                <div class="flex justify-between text-xs text-zinc-500 border-t border-zinc-800 pt-2">
+                    <div>Today: <span id="stats5Today" class="text-white font-bold ml-1">-</span></div>
+                    <div>Tmr: <span id="stats5Tomorrow" class="text-white font-bold ml-1">-</span></div>
+                </div>
             </div>
         </div>
 
@@ -369,26 +383,25 @@
             }).join('');
 
             return `
-                <div class="${cardClass} rounded-2xl p-3 md:p-5 text-white transform transition hover:scale-[1.02]">
-                    <div class="flex items-start justify-between mb-2 md:mb-4">
+                <div class="${cardClass} rounded-xl p-3 text-white transform transition hover:scale-[1.02]">
+                    <div class="flex items-start justify-between mb-2">
                         <div>
-                            <div class="text-[10px] md:text-xs ${badgeColor} px-2 md:px-3 py-0.5 md:py-1 rounded-full inline-block mb-1 md:mb-2 font-bold">
+                            <div class="text-[10px] ${badgeColor} px-2 py-0.5 rounded-full inline-block mb-1 font-bold">
                                 ${badgeText}
                             </div>
-                            <h2 class="text-lg md:text-xl font-bold leading-tight">${race.meeting_name} - Race ${race.race_number}</h2>
+                            <h2 class="text-base md:text-lg font-bold leading-tight">${race.meeting_name} - R${race.race_number}</h2>
                         </div>
                         <div class="text-right pl-2">
-                            <div class="text-lg md:text-2xl font-bold whitespace-nowrap">
+                            <div class="text-base md:text-xl font-bold whitespace-nowrap">
                                 ${formatDateLabel(race.race_time)}
                             </div>
                         </div>
                     </div>
                     
-                    <div class="bg-black/20 rounded-xl p-3 md:p-4 backdrop-blur-sm">
-                        <!-- Removed redundant runner count line -->
+                    <div class="bg-black/20 rounded-lg p-2 backdrop-blur-sm">
                         ${runnersHTML}
                     </div>
-                </div>
+                </div >
             `;
         }
 
@@ -438,11 +451,40 @@
                 return; // Nothing else to do
             }
 
-            // Update stats (based on VISIBLE races)
-            const microFieldCount = displayRaces.filter(r => r.active_runner_count === 4).length;
-            const opportunityCount = displayRaces.filter(r => r.active_runner_count === 5).length;
-            document.getElementById('microFieldCount').textContent = microFieldCount;
-            document.getElementById('opportunityCount').textContent = opportunityCount;
+            // Stats Calculation (Global based on cachedRaces, not just view)
+            // We want to show stats for "Upcoming" races usually
+            // But user asked for breakdown. Let's calculate based on ALL cached races that are Future or Today
+
+            const statsRaces = cachedRaces.filter(race => {
+                const rDate = race.race_time.split('T')[0];
+                return rDate >= todayStr; // Only count Today & Future for the dashboard
+            });
+
+            function countStats(runnerCount) {
+                const total = statsRaces.filter(r => r.active_runner_count === runnerCount).length;
+                const todayCount = statsRaces.filter(r => r.active_runner_count === runnerCount && r.race_time.split('T')[0] === todayStr).length;
+                // Anything > todayStr is tomorrow+
+                const tomorrowCount = statsRaces.filter(r => r.active_runner_count === runnerCount && r.race_time.split('T')[0] > todayStr).length;
+                return { total, todayCount, tomorrowCount };
+            }
+
+            const stats4 = countStats(4);
+            const stats5 = countStats(5);
+
+            document.getElementById('stats4Total').textContent = stats4.total;
+            document.getElementById('stats4Today').textContent = stats4.todayCount;
+            document.getElementById('stats4Tomorrow').textContent = stats4.tomorrowCount;
+
+            document.getElementById('stats5Total').textContent = stats5.total;
+            document.getElementById('stats5Today').textContent = stats5.todayCount;
+            document.getElementById('stats5Tomorrow').textContent = stats5.tomorrowCount;
+
+            // Handle empty state for list
+            document.getElementById('noRacesState').classList.add('hidden');
+            if (displayRaces.length === 0) {
+                document.getElementById('noRacesState').classList.remove('hidden');
+                return;
+            }
 
             // Sort logic: Micro-Fields (4) FIRST, then by Date
             const sortedRaces = displayRaces.sort((a, b) => {
