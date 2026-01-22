@@ -336,10 +336,13 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
             for link in runner_links:
                 parent_tr = link.find_parent('tr', class_='form-guide-field-selection')
                 if parent_tr and parent_tr not in runner_elements:
-                    # CRITICAL: Filter out vacant boxes by CSS class
-                    tr_classes = parent_tr.get('class', [])
-                    if 'form-guide-field-selection--vacant' not in tr_classes:
-                        runner_elements.append(parent_tr)
+                    # CRITICAL: Ensure this tr is actually within the current race_event
+                    # to prevent cross-race contamination
+                    if parent_tr.find_parent(class_='form-guide-field-event') == race_event:
+                        # CRITICAL: Filter out vacant boxes by CSS class
+                        tr_classes = parent_tr.get('class', [])
+                        if 'form-guide-field-selection--vacant' not in tr_classes:
+                            runner_elements.append(parent_tr)
             
             print(f"  DEBUG: After filtering vacant boxes: {len(runner_elements)} runner elements")
             
