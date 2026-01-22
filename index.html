@@ -184,6 +184,18 @@
             <p class="text-center text-zinc-500 text-sm mt-1">
                 Live tracking of 4-5 runner races
             </p>
+
+            <!-- View Toggles -->
+            <div class="flex justify-center gap-4 mt-6">
+                <button id="btnUpcoming" onclick="setView('upcoming')"
+                    class="px-4 py-1.5 rounded-full text-sm font-bold bg-white text-black transition">
+                    Upcoming
+                </button>
+                <button id="btnHistory" onclick="setView('history')"
+                    class="px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
+                    History
+                </button>
+            </div>
         </div>
     </header>
 
@@ -276,6 +288,29 @@
 
         // State
         let countdownIntervals = [];
+        let cachedRaces = [];
+        let currentView = 'upcoming'; // 'upcoming' or 'history'
+
+        // Set View mode
+        function setView(mode) {
+            currentView = mode;
+            // Update buttons
+            const btnUpcoming = document.getElementById('btnUpcoming');
+            const btnHistory = document.getElementById('btnHistory');
+
+            if (btnUpcoming && btnHistory) {
+                if (mode === 'upcoming') {
+                    btnUpcoming.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-white text-black transition";
+                    btnHistory.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition";
+                } else {
+                    btnUpcoming.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition";
+                    btnHistory.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-white text-black transition";
+                }
+            }
+            if (typeof renderRaces === 'function') {
+                renderRaces();
+            }
+        }
 
         // Format countdown timer
         function formatCountdown(raceTime) {
@@ -404,16 +439,76 @@
             });
         }
 
-        // Load races from Supabase
-        async function loadRaces() {
+        // Render Races based on current view info
+        function renderRaces() {
+            const container = document.getElementById('racesContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            // Filter based on view
+            // Use local date for "Today" comparison
+            // To be safe, we use the device's local midnight
+            const now = new Date();
+            // Reset to midnight for comparison
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const todayStr = today.toISOString().split('T')[0];
+
+            let displayRaces = cachedRaces.filter(race => {
+                // race_time is ISO string
+                if (!race.race_time) return false;
+                const raceDateStr = race.race_time.split('T')[0];
+
+                // Simple string comparison works for ISO dates (YYYY-MM-DD)
+                if (currentView === 'upcoming') {
+                    return raceDateStr >= todayStr;
+                } else {
+                    return raceDateStr < todayStr;
+                }
+            });
+
+            // Handle empty state
+            document.getElementById('noRacesState').classList.add('hidden');
+            if (displayRaces.length === 0) {
+                document.getElementById('noRacesState').classList.remove('hidden');
+                document.getElementById('microFieldCount').textContent = '0';
+                document.getElementById('opportunityCount').textContent = '0';
+                return; // Nothing else to do
+            }
+
+            // Update stats (based on VISIBLE races)
+            const microFieldCount = displayRaces.filter(r => r.active_runner_count === 4).length;
+            const opportunityCount = displayRaces.filter(r => r.active_runner_count === 5).length;
+            document.getElementById('microFieldCount').textContent = microFieldCount;
+            document.getElementById('opportunityCount').textContent = opportunityCount;
+
+            // Sort logic
+            const sortedRaces = displayRaces.sort((a, b) => {
+                const dateA = a.race_time.split('T')[0];
+                const dateB = b.race_time.split('T')[0];
+
+                if (dateA !== dateB) return dateA.localeCompare(dateB);
+                if (a.active_runner_count !== b.active_runner_count) return a.active_runner_count - b.active_runner_count;
+                if (a.meeting_name !== b.meeting_name) return a.meeting_name.localeCompare(b.meeting_name);
+                return a.race_number - b.race_number;
+            });
+
+            // Add cards
+            sortedRaces.forEach(race => {
+                const raceRunners = (race.runners || []).sort((a, b) => a.box_number - b.box_number);
+                container.innerHTML += createRaceCard(race, raceRunners);
+            });
+        }
+
+        // Fetch Races from Supabase
+        async function fetchRaces() {
             if (!supabaseClient) return; // Don't try if initialization failed
             console.log('Fetching races...');
             try {
-                // Show loading state
-                document.getElementById('loadingState').classList.remove('hidden');
+                // Show loading state only if no cache
+                const loading = document.getElementById('loadingState');
+                if (cachedRaces.length === 0) loading.classList.remove('hidden');
+
                 document.getElementById('errorState').classList.add('hidden');
-                document.getElementById('noRacesState').classList.add('hidden');
-                document.getElementById('racesContainer').innerHTML = '';
 
                 // Query races with 4-5 runners AND their runners in one go
                 const { data: races, error: racesError } = await supabaseClient
@@ -424,58 +519,14 @@
 
                 if (racesError) throw racesError;
 
+                // Update cache
+                cachedRaces = races || [];
+
                 // Hide loading state
-                document.getElementById('loadingState').classList.add('hidden');
+                loading.classList.add('hidden');
 
-                if (!races || races.length === 0) {
-                    document.getElementById('noRacesState').classList.remove('hidden');
-                    document.getElementById('microFieldCount').textContent = '0';
-                    document.getElementById('opportunityCount').textContent = '0';
-                    return;
-                }
-
-                // Process runners (they are now nested in race objects)
-                // We don't need grouped runners map anymore, races[i].runners has them
-
-
-                // Update stats
-                const microFieldCount = races.filter(r => r.active_runner_count === 4).length;
-                const opportunityCount = races.filter(r => r.active_runner_count === 5).length;
-                document.getElementById('microFieldCount').textContent = microFieldCount;
-                document.getElementById('opportunityCount').textContent = opportunityCount;
-
-                // Sort races: date first, then micro-fields, then grouped by meeting name
-                const sortedRaces = races.sort((a, b) => {
-                    const dateA = a.race_time.split('T')[0];
-                    const dateB = b.race_time.split('T')[0];
-
-                    // First: sort by date (today before tomorrow)
-                    if (dateA !== dateB) {
-                        return dateA.localeCompare(dateB);
-                    }
-
-                    // Second: micro-fields (4) before opportunities (5)
-                    // We want 4 to come BEFORE 5.
-                    if (a.active_runner_count !== b.active_runner_count) {
-                        return a.active_runner_count - b.active_runner_count;
-                    }
-
-                    // Third: group by meeting name
-                    if (a.meeting_name !== b.meeting_name) {
-                        return a.meeting_name.localeCompare(b.meeting_name);
-                    }
-
-                    // Fourth: within same meeting, sort by race number
-                    return a.race_number - b.race_number;
-                });
-
-                // Render race cards
-                const container = document.getElementById('racesContainer');
-                sortedRaces.forEach(race => {
-                    // Sorting runners by box number handles the display order
-                    const raceRunners = (race.runners || []).sort((a, b) => a.box_number - b.box_number);
-                    container.innerHTML += createRaceCard(race, raceRunners);
-                });
+                // Render with current view
+                renderRaces();
 
                 // Update last updated time
                 document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString('en-AU');
@@ -494,10 +545,10 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            loadRaces();
+            fetchRaces();
 
             // Refresh data every 2 minutes
-            setInterval(loadRaces, 2 * 60 * 1000);
+            setInterval(fetchRaces, 2 * 60 * 1000);
         });
     </script>
 
