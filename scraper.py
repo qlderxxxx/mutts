@@ -244,6 +244,12 @@ def scrape_form_guides() -> List[Dict]:
     
     # Find date headers (h2.meeting-list__title)
     date_headers = soup.select('h2.meeting-list__title')
+    print(f"DEBUG: Found {len(date_headers)} date headers")
+    
+    if not date_headers:
+        # Debug: print first 500 chars of HTML to see what we got
+        print("DEBUG: No date headers found! Page content preview:")
+        print(soup.prettify()[:500])
     
     # Process first two dates (Today and Tomorrow)
     for date_idx, date_header in enumerate(date_headers[:2]):
