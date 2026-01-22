@@ -141,7 +141,7 @@
     <!-- Header -->
     <header class="bg-zinc-900/90 backdrop-blur-lg border-b border-zinc-800 sticky top-0 z-50">
         <div class="container mx-auto px-4 py-4">
-            <h1 class="text-lg md:text-2xl font-bold text-center">
+            <h1 class="text-base md:text-xl font-bold text-center">
                 🐕 4 Mutt Finder
             </h1>
             <p class="text-center text-zinc-500 text-xs mt-1">
@@ -166,25 +166,25 @@
     <main class="container mx-auto px-4 py-6">
 
         <!-- Stats Bar -->
-        <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="grid grid-cols-2 gap-2 mb-3">
             <!-- 4 Runners -->
-            <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-3 border border-zinc-800">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="text-xs font-bold text-zinc-400 uppercase">4 Runners</div>
-                    <div class="text-2xl font-bold text-red-500" id="stats4Total">-</div>
+            <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-2 border border-zinc-800">
+                <div class="flex items-center justify-between mb-1">
+                    <div class="text-[10px] font-bold text-zinc-400 uppercase">4 Runners</div>
+                    <div class="text-xl font-bold text-red-500" id="stats4Total">-</div>
                 </div>
-                <div class="flex justify-between text-xs text-zinc-500 border-t border-zinc-800 pt-2">
+                <div class="flex justify-between text-[10px] text-zinc-500 border-t border-zinc-800 pt-1">
                     <div>Today: <span id="stats4Today" class="text-white font-bold ml-1">-</span></div>
                     <div>Tmr: <span id="stats4Tomorrow" class="text-white font-bold ml-1">-</span></div>
                 </div>
             </div>
             <!-- 5 Runners -->
-            <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-3 border border-zinc-800">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="text-xs font-bold text-zinc-400 uppercase">5 Runners</div>
-                    <div class="text-2xl font-bold text-orange-500" id="stats5Total">-</div>
+            <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-2 border border-zinc-800">
+                <div class="flex items-center justify-between mb-1">
+                    <div class="text-[10px] font-bold text-zinc-400 uppercase">5 Runners</div>
+                    <div class="text-xl font-bold text-orange-500" id="stats5Total">-</div>
                 </div>
-                <div class="flex justify-between text-xs text-zinc-500 border-t border-zinc-800 pt-2">
+                <div class="flex justify-between text-[10px] text-zinc-500 border-t border-zinc-800 pt-1">
                     <div>Today: <span id="stats5Today" class="text-white font-bold ml-1">-</span></div>
                     <div>Tmr: <span id="stats5Tomorrow" class="text-white font-bold ml-1">-</span></div>
                 </div>
@@ -215,8 +215,11 @@
         </div>
 
         <!-- Races Container -->
-        <div id="racesContainer" class="races-grid">
+        <!-- Races Container -->
+        <div id="racesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             <!-- Race cards will be inserted here -->
+        </div>
+        <!-- Race cards will be inserted here -->
         </div>
 
         <!-- Last Updated -->
@@ -356,26 +359,26 @@
 
             const runnersHTML = sortedRunners.map(runner => {
                 const scratchedClass = runner.is_scratched ? 'opacity-50 line-through' : '';
-                const ghrOddsText = runner.ghr_odds ? `$${runner.ghr_odds.toFixed(2)}` : 'N/A';
-                const sbOddsText = runner.sportsbet_odds ? `$${runner.sportsbet_odds.toFixed(2)}` : 'N/A';
+                const ghrOddsText = runner.ghr_odds ? `$${runner.ghr_odds.toFixed(2)}` : '-';
+                const sbOddsText = runner.sportsbet_odds ? `$${runner.sportsbet_odds.toFixed(2)}` : '-';
                 const boxClass = `box-${runner.box_number}`;
 
                 return `
-                    <div class="flex items-center justify-between py-1.5 md:py-2 border-b border-white/10 last:border-0 ${scratchedClass}">
-                        <div class="flex items-center gap-2 md:gap-3">
-                            <div class="w-6 h-6 md:w-8 md:h-8 rounded-full ${boxClass} flex items-center justify-center font-bold text-xs md:text-sm">
+                    <div class="flex items-center justify-between py-0.5 border-b border-white/5 last:border-0 ${scratchedClass}">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <div class="w-4 h-4 rounded-full ${boxClass} flex items-center justify-center font-bold text-[9px] flex-shrink-0">
                                 ${runner.box_number}
                             </div>
-                            <div class="font-semibold text-sm md:text-base">${runner.dog_name}</div>
+                            <div class="font-medium text-xs text-white/90 truncate pr-1">${runner.dog_name}</div>
                         </div>
-                        <div class="flex gap-2 md:gap-4 items-center">
-                            <div class="text-right">
-                                <div class="text-[10px] md:text-xs text-white/60">GHR</div>
-                                <div class="font-bold text-sm md:text-base">${ghrOddsText}</div>
+                        <div class="flex gap-1.5 items-center flex-shrink-0">
+                            <div class="text-right w-[28px]">
+                                <div class="text-[8px] text-white/40 leading-none">GHR</div>
+                                <div class="font-bold text-[10px] leading-tight">${ghrOddsText}</div>
                             </div>
-                            <div class="text-right">
-                                <div class="text-[10px] md:text-xs text-white/60">SB</div>
-                                <div class="font-bold text-base md:text-lg text-blue-400">${sbOddsText}</div>
+                            <div class="text-right w-[28px]">
+                                <div class="text-[8px] text-white/40 leading-none">SB</div>
+                                <div class="font-bold text-[10px] leading-tight text-blue-300">${sbOddsText}</div>
                             </div>
                         </div>
                     </div>
@@ -383,25 +386,25 @@
             }).join('');
 
             return `
-                <div class="${cardClass} rounded-xl p-3 text-white transform transition hover:scale-[1.02]">
-                    <div class="flex items-start justify-between mb-2">
-                        <div>
-                            <div class="text-[10px] ${badgeColor} px-2 py-0.5 rounded-full inline-block mb-1 font-bold">
+                <div class="${cardClass} rounded-lg p-2 text-white transform transition hover:scale-[1.01] hover:shadow-lg">
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <div class="text-[9px] ${badgeColor} px-1.5 rounded-sm text-white/90 font-bold uppercase tracking-wider flex-shrink-0">
                                 ${badgeText}
                             </div>
-                            <h2 class="text-base md:text-lg font-bold leading-tight">${race.meeting_name} - R${race.race_number}</h2>
+                            <h2 class="text-xs font-bold leading-tight truncate text-white/90">${race.meeting_name} ${race.race_number}</h2>
                         </div>
-                        <div class="text-right pl-2">
-                            <div class="text-base md:text-xl font-bold whitespace-nowrap">
+                        <div class="text-right pl-1 flex-shrink-0">
+                            <div class="text-xs font-bold whitespace-nowrap opacity-75">
                                 ${formatDateLabel(race.race_time)}
                             </div>
                         </div>
                     </div>
                     
-                    <div class="bg-black/20 rounded-lg p-2 backdrop-blur-sm">
+                    <div class="bg-black/20 rounded-md px-1.5 py-0.5 backdrop-blur-sm">
                         ${runnersHTML}
                     </div>
-                </div >
+                </div>
             `;
         }
 
