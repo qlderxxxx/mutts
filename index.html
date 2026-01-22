@@ -203,7 +203,7 @@
     <main class="container mx-auto px-4 py-6">
 
         <!-- Stats Bar -->
-        <div class="grid grid-cols-2 gap-2 mb-3">
+        <div id="statsUpcoming" class="grid grid-cols-2 gap-2 mb-3">
             <!-- 4 Runners -->
             <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-2 border border-zinc-800">
                 <div class="flex items-center justify-between mb-1">
@@ -224,6 +224,53 @@
                 <div class="flex justify-between text-[10px] text-zinc-500 border-t border-zinc-800 pt-1">
                     <div>Today: <span id="stats5Today" class="text-white font-bold ml-1">-</span></div>
                     <div>Tmr: <span id="stats5Tomorrow" class="text-white font-bold ml-1">-</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Bar for History View (Top 2 in Top 2 Strike Rates) -->
+        <div id="statsHistory" class="hidden mb-3">
+            <!-- Top Row: 4 & 5 Runners (Larger) -->
+            <div class="grid grid-cols-2 gap-2 mb-2">
+                <!-- 4 Runners -->
+                <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-3 border border-zinc-800">
+                    <div class="text-xs font-bold text-zinc-400 uppercase mb-2">4 Runners</div>
+                    <div class="text-2xl font-bold text-red-500" id="statsHistory4">-</div>
+                    <div class="text-xs text-zinc-500 mt-1" id="statsHistory4Pct">-</div>
+                </div>
+                <!-- 5 Runners -->
+                <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-3 border border-zinc-800">
+                    <div class="text-xs font-bold text-zinc-400 uppercase mb-2">5 Runners</div>
+                    <div class="text-2xl font-bold text-orange-500" id="statsHistory5">-</div>
+                    <div class="text-xs text-zinc-500 mt-1" id="statsHistory5Pct">-</div>
+                </div>
+            </div>
+
+            <!-- Bottom Row: 6, 7, 8, All (Smaller) -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <!-- 6 Runners -->
+                <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-2 border border-zinc-800">
+                    <div class="text-[9px] font-bold text-zinc-400 uppercase mb-1">6 Runners</div>
+                    <div class="text-sm font-bold text-yellow-500" id="statsHistory6">-</div>
+                    <div class="text-[8px] text-zinc-500" id="statsHistory6Pct">-</div>
+                </div>
+                <!-- 7 Runners -->
+                <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-2 border border-zinc-800">
+                    <div class="text-[9px] font-bold text-zinc-400 uppercase mb-1">7 Runners</div>
+                    <div class="text-sm font-bold text-green-500" id="statsHistory7">-</div>
+                    <div class="text-[8px] text-zinc-500" id="statsHistory7Pct">-</div>
+                </div>
+                <!-- 8 Runners -->
+                <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-2 border border-zinc-800">
+                    <div class="text-[9px] font-bold text-zinc-400 uppercase mb-1">8 Runners</div>
+                    <div class="text-sm font-bold text-blue-500" id="statsHistory8">-</div>
+                    <div class="text-[8px] text-zinc-500" id="statsHistory8Pct">-</div>
+                </div>
+                <!-- All Fields -->
+                <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-2 border border-zinc-800">
+                    <div class="text-[9px] font-bold text-zinc-400 uppercase mb-1">All Fields</div>
+                    <div class="text-sm font-bold text-white" id="statsHistoryAll">-</div>
+                    <div class="text-[8px] text-zinc-500" id="statsHistoryAllPct">-</div>
                 </div>
             </div>
         </div>
@@ -316,6 +363,8 @@
             const btnUpcoming = document.getElementById('btnUpcoming');
             const btnHistory = document.getElementById('btnHistory');
             const dateFilter = document.getElementById('dateFilter');
+            const statsUpcoming = document.getElementById('statsUpcoming');
+            const statsHistory = document.getElementById('statsHistory');
 
             if (btnUpcoming && btnHistory) {
                 if (mode === 'upcoming') {
@@ -323,11 +372,17 @@
                     btnHistory.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition";
                     // Show date filter for upcoming view
                     if (dateFilter) dateFilter.style.display = 'flex';
+                    // Show upcoming stats, hide history stats
+                    if (statsUpcoming) statsUpcoming.classList.remove('hidden');
+                    if (statsHistory) statsHistory.classList.add('hidden');
                 } else {
                     btnUpcoming.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition";
                     btnHistory.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-white text-black transition";
                     // Hide date filter for history view
                     if (dateFilter) dateFilter.style.display = 'none';
+                    // Show history stats, hide upcoming stats
+                    if (statsUpcoming) statsUpcoming.classList.add('hidden');
+                    if (statsHistory) statsHistory.classList.remove('hidden');
                 }
             }
             if (typeof renderRaces === 'function') {
@@ -572,6 +627,52 @@
             document.getElementById('stats5Total').textContent = stats5.total;
             document.getElementById('stats5Today').textContent = stats5.todayCount;
             document.getElementById('stats5Tomorrow').textContent = stats5.tomorrowCount;
+
+            // History Stats - Top 2 in Top 2 Strike Rates
+            if (currentView === 'history') {
+                const historyRaces = cachedRaces.filter(race => {
+                    const rDate = race.race_time.split('T')[0];
+                    return rDate < todayStr && race.top_2_in_top_2 !== null; // Only historical races with results
+                });
+
+                function calculateStrikeRate(runnerCount) {
+                    const races = historyRaces.filter(r => r.active_runner_count === runnerCount);
+                    const total = races.length;
+                    const successes = races.filter(r => r.top_2_in_top_2 === true).length;
+                    const percentage = total > 0 ? ((successes / total) * 100).toFixed(1) : 0;
+                    return { successes, total, percentage };
+                }
+
+                const history4 = calculateStrikeRate(4);
+                const history5 = calculateStrikeRate(5);
+                const history6 = calculateStrikeRate(6);
+                const history7 = calculateStrikeRate(7);
+                const history8 = calculateStrikeRate(8);
+
+                // All fields combined
+                const allTotal = historyRaces.length;
+                const allSuccesses = historyRaces.filter(r => r.top_2_in_top_2 === true).length;
+                const allPercentage = allTotal > 0 ? ((allSuccesses / allTotal) * 100).toFixed(1) : 0;
+
+                // Update DOM
+                document.getElementById('statsHistory4').textContent = `${history4.successes}/${history4.total}`;
+                document.getElementById('statsHistory4Pct').textContent = `${history4.percentage}%`;
+
+                document.getElementById('statsHistory5').textContent = `${history5.successes}/${history5.total}`;
+                document.getElementById('statsHistory5Pct').textContent = `${history5.percentage}%`;
+
+                document.getElementById('statsHistory6').textContent = `${history6.successes}/${history6.total}`;
+                document.getElementById('statsHistory6Pct').textContent = `${history6.percentage}%`;
+
+                document.getElementById('statsHistory7').textContent = `${history7.successes}/${history7.total}`;
+                document.getElementById('statsHistory7Pct').textContent = `${history7.percentage}%`;
+
+                document.getElementById('statsHistory8').textContent = `${history8.successes}/${history8.total}`;
+                document.getElementById('statsHistory8Pct').textContent = `${history8.percentage}%`;
+
+                document.getElementById('statsHistoryAll').textContent = `${allSuccesses}/${allTotal}`;
+                document.getElementById('statsHistoryAllPct').textContent = `${allPercentage}%`;
+            }
 
             // Handle empty state for list
             document.getElementById('noRacesState').classList.add('hidden');

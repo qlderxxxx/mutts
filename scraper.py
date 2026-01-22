@@ -597,9 +597,10 @@ def update_race_results(race_results: Dict):
                 # Check if they match
                 top_2_in_top_2 = top_2_favorites == top_2_finishers
                 
-                # Update race
+                # Update race with Top 2 in Top 2 and status
                 supabase.table('races').update({
-                    'top_2_in_top_2': top_2_in_top_2
+                    'top_2_in_top_2': top_2_in_top_2,
+                    'status': 'resulted'
                 }).eq('id', race_id).execute()
                 
                 print(f"Updated results: {meeting_name} R{race_number} - Top 2 in Top 2: {top_2_in_top_2}")
