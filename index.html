@@ -249,10 +249,10 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2bmt5YWt1YW12YWh0aXdibmVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5Mzg4MTQsImV4cCI6MjA4NDUxNDgxNH0.-v9LyyRgX2tj9EFCImHo44XxSQcZ4_GmQZw-q7ZTX5I';
 
         // Initialize Supabase client
-        let supabase;
+        let supabaseClient;
         try {
             if (!window.supabase) throw new Error('Supabase library not loaded. Check connection.');
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         } catch (e) {
             console.error(e);
             document.getElementById('loadingState').classList.add('hidden');
@@ -400,7 +400,7 @@
 
         // Load races from Supabase
         async function loadRaces() {
-            if (!supabase) return; // Don't try if initialization failed
+            if (!supabaseClient) return; // Don't try if initialization failed
             console.log('Fetching races...');
             try {
                 // Show loading state
@@ -410,7 +410,7 @@
                 document.getElementById('racesContainer').innerHTML = '';
 
                 // Query races with 4-5 runners AND their runners in one go
-                const { data: races, error: racesError } = await supabase
+                const { data: races, error: racesError } = await supabaseClient
                     .from('races')
                     .select('*, runners(*)')  // Optimized join
                     .in('active_runner_count', [4, 5])
