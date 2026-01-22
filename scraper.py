@@ -34,22 +34,45 @@ def fetch_page(url: str) -> Optional[BeautifulSoup]:
     """Fetch and parse a web page using Playwright to bypass WAF"""
     try:
         with sync_playwright() as p:
-            # Launch browser (headless)
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
+            # Launch browser with stealth args
+            browser = p.chromium.launch(
+                headless=True,
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                ]
+            )
             
-            # Set a real user agent
-            page.set_extra_http_headers({
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
-            })
+            # Create context with realistic viewport and user agent
+            context = browser.new_context(
+                viewport={'width': 1920, 'height': 1080},
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                locale='en-AU',
+                timezone_id='Australia/Sydney'
+            )
+            
+            page = context.new_page()
+            
+            # Mask hydration/webdriver checks
+            page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
             
             print(f"Navigating to {url}...")
+            # Go to home page first to set cookies/session if needed
+            if 'form-guides' in url:
+                try:
+                    page.goto("https://www.thegreyhoundrecorder.com.au", timeout=30000)
+                    page.wait_for_timeout(2000) # Wait 2s
+                except:
+                    pass
+            
             page.goto(url, timeout=60000)
             
             # Wait for content to load (handling WAF challenge)
             try:
-                # Wait for the main date header to appear (max 10s)
-                page.wait_for_selector('h2.meeting-list__title', timeout=10000)
+                # Wait longer for WAF
+                page.wait_for_selector('h2.meeting-list__title', timeout=15000)
                 print("Content loaded successfully")
             except Exception:
                 print("Timeout waiting for selector, attempting to capture content anyway...")
