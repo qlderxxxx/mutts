@@ -10,6 +10,7 @@ import re
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Optional
 import requests
+import cloudscraper
 from bs4 import BeautifulSoup
 from supabase import create_client, Client
 
@@ -30,12 +31,10 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def fetch_page(url: str) -> Optional[BeautifulSoup]:
-    """Fetch and parse a web page"""
+    """Fetch and parse a web page using CloudScraper to bypass WAF"""
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-        response = requests.get(url, headers=headers, timeout=30)
+        scraper = cloudscraper.create_scraper()
+        response = scraper.get(url, timeout=30)
         response.raise_for_status()
         return BeautifulSoup(response.content, 'lxml')
     except Exception as e:
