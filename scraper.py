@@ -99,10 +99,13 @@ def fetch_page(url: str) -> Optional[BeautifulSoup]:
                 # 2. Go to target
                 page.goto(url, timeout=60000, wait_until='domcontentloaded')
                 
-                # 3. Wait for content to load
-                # On meeting pages, we look for the race header or title
+                # 3. Wait for content to load - CRITICAL: Wait for the actual table with runner data
+                # The page uses JavaScript to populate the tables, so we need to wait for them
                 try:
-                    page.wait_for_selector('.form-guide-field-event__header', timeout=5000)
+                    # Wait for the table element that contains runner data
+                    page.wait_for_selector('table.form-guide-event__table', timeout=15000)
+                    # Give extra time for all JavaScript to finish rendering
+                    page.wait_for_timeout(2000)
                 except:
                     # Fallback to just wait for body if specific element missing
                     page.wait_for_selector('body', timeout=5000)
@@ -170,21 +173,33 @@ def count_active_runners(runner_elements) -> tuple[int, List[Dict]]:
         try:
             # Get full text to check for status markers
             runner_text = runner_elem.get_text()
+            runner_text_upper = runner_text.upper()
             
             # Check for vacant box (already filtered, but double-check)
-            if 'VACANT BOX' in runner_text.upper():
+            if 'VACANT BOX' in runner_text_upper:
                 continue
             
-            # Check if scratched
+            # Check if scratched - Use multiple methods
+            # 1. Check CSS class (most reliable)
+            # 2. Check for SCR as a whole word in text
+            # 3. Check for SCRATCHED in text
             is_scratched = False
-            if 'SCR' in runner_text or 'SCRATCHED' in runner_text.upper():
+            runner_classes = runner_elem.get('class', [])
+            if 'form-guide-field-selection--scratched' in runner_classes:
+                is_scratched = True
+            elif re.search(r'\bSCR\b', runner_text_upper) or 'SCRATCHED' in runner_text_upper:
                 is_scratched = True
             
             # Check for reserves (typically box 9-10 or marked as RES)
             # Skip reserves unless they have a confirmed run
-            if 'RES' in runner_text and not is_scratched:
+            # Use Regex for RES as whole word
+            if re.search(r'\bRES\b', runner_text_upper) and not is_scratched:
                 # If it's a reserve without odds, skip it
-                continue
+                # Logic: If it has odds, it might be running? 
+                # For now, let's just mark it as not active if we aren't sure, 
+                # but usually RES dogs don't run unless scratched.
+                # If we skip here, they aren't in the list at all.
+                pass 
             
             # Extract dog name - CORRECTED SELECTOR
             dog_name_elem = runner_elem.select_one('.form-guide-field-selection__name')
@@ -192,6 +207,7 @@ def count_active_runners(runner_elements) -> tuple[int, List[Dict]]:
                 # Try alternative selector
                 dog_name_elem = runner_elem.select_one('a.form-guide-field-selection__link')
             if not dog_name_elem:
+                print(f"Skipping runner idx {idx}: No name element found. Text: {runner_text[:50]}...")
                 continue
             
             dog_name = dog_name_elem.get_text(strip=True)
@@ -231,6 +247,15 @@ def count_active_runners(runner_elements) -> tuple[int, List[Dict]]:
     
     # Count only non-scratched runners
     active_count = sum(1 for r in active_runners if not r['is_scratched'])
+    
+    # DEBUG: Print runner details for verification
+    if len(active_runners) > 0:
+        print(f"  DEBUG: Total runners found: {len(active_runners)}, Active (non-scratched): {active_count}")
+        if active_count != len(active_runners):
+            print(f"  Scratched runners detected:")
+            for r in active_runners:
+                if r['is_scratched']:
+                    print(f"    - Box {r['box_number']}: {r['dog_name']}")
     
     return active_count, active_runners
 
@@ -288,16 +313,24 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
             
             race_number = int(race_match.group(1))
             
-            # Find all runners
-            runner_elements = race_event.select('tr.form-guide-field-selection')
+            # Find all runners by looking for links in the DESKTOP TABLE ONLY
+            # (The page has both mobile and desktop views, we need to avoid double-counting)
+            # Look specifically within the table element
+            table = race_event.select_one('table.form-guide-event__table')
+            if not table:
+                print(f"Warning: No table found for {meeting_name} R{race_number}")
+                continue
             
-            # Filter out vacant boxes
-            active_runner_elements = [
-                r for r in runner_elements 
-                if 'form-guide-field-selection--vacant' not in r.get('class', [])
-            ]
+            runner_links = table.select('a.form-guide-field-selection__link')
             
-            active_count, runners = count_active_runners(active_runner_elements)
+            # Get the parent tr elements for each link
+            runner_elements = []
+            for link in runner_links:
+                parent_tr = link.find_parent('tr', class_='form-guide-field-selection')
+                if parent_tr and parent_tr not in runner_elements:
+                    runner_elements.append(parent_tr)
+            
+            active_count, runners = count_active_runners(runner_elements)
             
             race_data = {
                 'meeting_name': meeting_name,
