@@ -10,7 +10,7 @@ import re
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Optional
 import requests
-import cloudscraper
+from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 from supabase import create_client, Client
 
@@ -31,12 +31,34 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def fetch_page(url: str) -> Optional[BeautifulSoup]:
-    """Fetch and parse a web page using CloudScraper to bypass WAF"""
+    """Fetch and parse a web page using Playwright to bypass WAF"""
     try:
-        scraper = cloudscraper.create_scraper()
-        response = scraper.get(url, timeout=30)
-        response.raise_for_status()
-        return BeautifulSoup(response.content, 'lxml')
+        with sync_playwright() as p:
+            # Launch browser (headless)
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            
+            # Set a real user agent
+            page.set_extra_http_headers({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
+            })
+            
+            print(f"Navigating to {url}...")
+            page.goto(url, timeout=60000)
+            
+            # Wait for content to load (handling WAF challenge)
+            try:
+                # Wait for the main date header to appear (max 10s)
+                page.wait_for_selector('h2.meeting-list__title', timeout=10000)
+                print("Content loaded successfully")
+            except Exception:
+                print("Timeout waiting for selector, attempting to capture content anyway...")
+            
+            content = page.content()
+            browser.close()
+            
+            return BeautifulSoup(content, 'lxml')
+            
     except Exception as e:
         print(f"Error fetching {url}: {e}")
         return None
