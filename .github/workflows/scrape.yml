@@ -2,8 +2,8 @@ name: Scrape Greyhound Races
 
 on:
   schedule:
-    # Run every 15 minutes
-    - cron: '*/15 * * * *'
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
   
   # Allow manual triggering
   workflow_dispatch:
