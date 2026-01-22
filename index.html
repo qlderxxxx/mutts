@@ -579,8 +579,9 @@
 
                 if (!passesViewFilter) return false;
 
-                // Filter by runner count (only show 4-5 runners in Upcoming view)
-                if (currentView === 'upcoming' && ![4, 5].includes(race.active_runner_count)) {
+                // Filter by runner count (only show 4-5 runners in race cards for both views)
+                // Stats will still show all runner counts in History view
+                if (![4, 5].includes(race.active_runner_count)) {
                     return false;
                 }
 
