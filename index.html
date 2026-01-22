@@ -312,16 +312,22 @@
 
         // Format date label (Today/Tomorrow)
         function formatDateLabel(raceTime) {
-            // raceTime is a string like "2026-01-21"
+            // raceTime is a string like "2026-01-21..."
+            if (!raceTime) return '';
+            const dateStr = raceTime.split('T')[0];
             const today = new Date().toISOString().split('T')[0];
-            const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-            if (raceTime === today) {
+            // Calculate tomorrow safer way
+            const tmr = new Date();
+            tmr.setDate(tmr.getDate() + 1);
+            const tomorrow = tmr.toISOString().split('T')[0];
+
+            if (dateStr === today) {
                 return 'Today';
-            } else if (raceTime === tomorrow) {
+            } else if (dateStr === tomorrow) {
                 return 'Tomorrow';
             } else {
-                return raceTime; // Fallback to showing the date
+                return dateStr; // Fallback to YYYY-MM-DD
             }
         }
 
@@ -440,14 +446,19 @@
 
                 // Sort races: date first, then micro-fields, then grouped by meeting name
                 const sortedRaces = races.sort((a, b) => {
+                    const dateA = a.race_time.split('T')[0];
+                    const dateB = b.race_time.split('T')[0];
+
                     // First: sort by date (today before tomorrow)
-                    if (a.race_time !== b.race_time) {
-                        return a.race_time.localeCompare(b.race_time);
+                    if (dateA !== dateB) {
+                        return dateA.localeCompare(dateB);
                     }
 
-                    // Second: micro-fields before opportunities
-                    if (a.active_runner_count === 4 && b.active_runner_count !== 4) return -1;
-                    if (a.active_runner_count !== 4 && b.active_runner_count === 4) return 1;
+                    // Second: micro-fields (4) before opportunities (5)
+                    // We want 4 to come BEFORE 5.
+                    if (a.active_runner_count !== b.active_runner_count) {
+                        return a.active_runner_count - b.active_runner_count;
+                    }
 
                     // Third: group by meeting name
                     if (a.meeting_name !== b.meeting_name) {
