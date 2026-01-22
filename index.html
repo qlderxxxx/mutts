@@ -579,6 +579,11 @@
 
                 if (!passesViewFilter) return false;
 
+                // Filter by runner count (only show 4-5 runners in Upcoming view)
+                if (currentView === 'upcoming' && ![4, 5].includes(race.active_runner_count)) {
+                    return false;
+                }
+
                 // Filter by date (only for upcoming view)
                 if (currentView === 'upcoming' && currentDateFilter !== 'all') {
                     if (currentDateFilter === 'today') {
@@ -719,11 +724,11 @@
 
                 document.getElementById('errorState').classList.add('hidden');
 
-                // Query races with 4-5 runners AND their runners in one go
+                // Query races with their runners
+                // Fetch all races (not just 4-5) so we can show strike rates for all runner counts in History
                 const { data: races, error: racesError } = await supabaseClient
                     .from('races')
                     .select('*, runners(*)')  // Optimized join
-                    .in('active_runner_count', [4, 5])
                     .order('race_time', { ascending: true });
 
                 if (racesError) throw racesError;
