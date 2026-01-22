@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Greyhound Micro-Field Finder</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        #debug-console {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            color: #0f0;
+            font-family: monospace;
+            padding: 10px;
+            z-index: 9999;
+            max-height: 200px;
+            overflow-y: auto;
+            border-top: 1px solid #333;
+            display: none;
+        }
+    </style>
+    <script>
+        // Global error handler
+        window.onerror = function (msg, url, line, col, error) {
+            const console = document.getElementById('debug-console');
+            if (console) {
+                console.style.display = 'block';
+                console.innerHTML += `<div>[ERROR] ${msg} (Line ${line})</div>`;
+            }
+            // Also force error state visible
+            const errorState = document.getElementById('errorState');
+            const loadingState = document.getElementById('loadingState');
+            if (loadingState) loadingState.style.display = 'none';
+            if (errorState) {
+                errorState.style.display = 'block'; // force visible
+                errorState.classList.remove('hidden');
+                document.getElementById('errorMessage').textContent = "CRITICAL: " + msg;
+            }
+            return false;
+        };
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0a;
+        }
+
+        .micro-field-card {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
+            animation: pulse-red 2s ease-in-out infinite;
+        }
+
+        .opportunity-card {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            box-shadow: 0 10px 30px rgba(249, 115, 22, 0.3);
+            animation: pulse-orange 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-red {
+
+            0%,
+            100% {
+                box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 15px 40px rgba(239, 68, 68, 0.6);
+            }
+        }
+
+        @keyframes pulse-orange {
+
+            0%,
+            100% {
+                box-shadow: 0 10px 30px rgba(249, 115, 22, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 15px 40px rgba(249, 115, 22, 0.5);
+            }
+        }
+
+        .countdown {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Standard greyhound box colors */
+        .box-1 {
+            background: #ef4444;
+        }
+
+        /* Red */
+        .box-2 {
+            background: #3b82f6;
+        }
+
+        /* Blue */
+        .box-3 {
+            background: #ffffff;
+            color: #000;
+        }
+
+        /* White */
+        .box-4 {
+            background: #000000;
+        }
+
+        /* Black */
+        .box-5 {
+            background: #f59e0b;
+        }
+
+        /* Orange/Yellow */
+        .box-6 {
+            background: #000000;
+            border: 2px solid #ffffff;
+        }
+
+        /* Black/White stripes (approximated) */
+        .box-7 {
+            background: #ef4444;
+            border: 2px solid #ffffff;
+        }
+
+        /* Red/White stripes (approximated) */
+        .box-8 {
+            background: #fbbf24;
+            color: #000;
+        }
+
+        /* Yellow */
+
+        /* Responsive grid */
+        @media (min-width: 768px) {
+            .races-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen text-white">
+
+    <!-- Header -->
+    <header class="bg-zinc-900/90 backdrop-blur-lg border-b border-zinc-800 sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-center">
+                🐕 Greyhound Micro-Field Finder (v2)
+            </h1>
+            <p class="text-center text-zinc-500 text-sm mt-1">
+                Live tracking of 4-5 runner races
+            </p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-6">
+
+        <!-- Stats Bar -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="bg-zinc-900/50 backdrop-blur-lg rounded-xl p-4 border border-zinc-800">
+                <div class="text-3xl font-bold text-red-500" id="microFieldCount">-</div>
+                <div class="text-sm text-zinc-500">Micro-Fields (4)</div>
+            </div>
+            <div class="bg-zinc-900/50 backdrop-blur-lg rounded-xl p-4 border border-zinc-800">
+                <div class="text-3xl font-bold text-orange-500" id="opportunityCount">-</div>
+                <div class="text-sm text-zinc-500">Opportunities (5)</div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="flex flex-col items-center justify-center py-20">
+            <div class="loading-spinner mb-4"></div>
+            <p class="text-zinc-400">Loading races...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="hidden bg-red-900/30 border border-red-700 rounded-xl p-6 text-center">
+            <p class="text-red-400 font-semibold">⚠️ Error loading races</p>
+            <p class="text-zinc-400 text-sm mt-2" id="errorMessage"></p>
+            <button onclick="loadRaces()" class="mt-4 px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition">
+                Retry
+            </button>
+        </div>
+
+        <!-- No Races State -->
+        <div id="noRacesState"
+            class="hidden bg-zinc-900/50 backdrop-blur-lg rounded-xl p-8 text-center border border-zinc-800">
+            <p class="text-2xl mb-2">🎯</p>
+            <p class="text-zinc-300 font-semibold">No micro-fields found</p>
+            <p class="text-zinc-400 text-sm mt-2">Check back soon for 4-5 runner races</p>
+        </div>
+
+        <!-- Races Container -->
+        <div id="racesContainer" class="races-grid">
+            <!-- Race cards will be inserted here -->
+        </div>
+
+        <!-- Last Updated -->
+        <div class="text-center text-zinc-600 text-sm mt-8">
+            Last updated: <span id="lastUpdated">-</span>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center text-zinc-600 text-sm py-6 mt-12">
+        <p>Data sourced from The Greyhound Recorder</p>
+        <p class="mt-1">Updates every 15 minutes</p>
+    </footer>
+
+    <script>
+        // Configuration - Supabase credentials
+        const SUPABASE_URL = 'https://yvnkyakuamvahtiwbneq.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2bmt5YWt1YW12YWh0aXdibmVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5Mzg4MTQsImV4cCI6MjA4NDUxNDgxNH0.-v9LyyRgX2tj9EFCImHo44XxSQcZ4_GmQZw-q7ZTX5I';
+
+        // Initialize Supabase client
+        let supabase;
+        try {
+            if (!window.supabase) throw new Error('Supabase library not loaded. Check connection.');
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (e) {
+            console.error(e);
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('errorState').classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = 'Failed to initialize app: ' + e.message;
+        }
+
+        // Safety timeout - if nothing happens in 10s, verify what's wrong
+        setTimeout(() => {
+            const loading = document.getElementById('loadingState');
+            if (!loading.classList.contains('hidden')) {
+                // If still loading after 10s, show error or console status
+                console.warn('Loading timeout reached');
+                loading.innerHTML = `
+                    <div class="loading-spinner mb-4"></div>
+                    <p class="text-zinc-400">Still loading... (Slow connection?)</p>
+                    <p class="text-zinc-600 text-xs mt-2">Check console for errors</p>
+                `;
+            }
+        }, 8000);
+
+        // State
+        let countdownIntervals = [];
+
+        // Format countdown timer
+        function formatCountdown(raceTime) {
+            const now = new Date();
+            const race = new Date(raceTime);
+            const diff = race - now;
+
+            if (diff < 0) {
+                return 'FINISHED';
+            }
+
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            if (hours > 0) {
+                return `${hours}h ${minutes}m`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${seconds}s`;
+            } else {
+                return `${seconds}s`;
+            }
+        }
+
+        // Format race time
+        function formatRaceTime(raceTime) {
+            const date = new Date(raceTime);
+            return date.toLocaleTimeString('en-AU', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+
+        // Format date label (Today/Tomorrow)
+        function formatDateLabel(raceTime) {
+            // raceTime is a string like "2026-01-21"
+            const today = new Date().toISOString().split('T')[0];
+            const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+            if (raceTime === today) {
+                return 'Today';
+            } else if (raceTime === tomorrow) {
+                return 'Tomorrow';
+            } else {
+                return raceTime; // Fallback to showing the date
+            }
+        }
+
+        // Create race card HTML
+        function createRaceCard(race, runners) {
+            const isMicroField = race.active_runner_count === 4;
+            const cardClass = isMicroField ? 'micro-field-card' : 'opportunity-card';
+            const badgeText = isMicroField ? 'MICRO-FIELD' : 'OPPORTUNITY';
+            const badgeColor = isMicroField ? 'bg-red-900' : 'bg-orange-900';
+
+            // Sort runners by box number
+            const sortedRunners = runners.sort((a, b) => a.box_number - b.box_number);
+
+            const runnersHTML = sortedRunners.map(runner => {
+                const scratchedClass = runner.is_scratched ? 'opacity-50 line-through' : '';
+                const ghrOddsText = runner.ghr_odds ? `$${runner.ghr_odds.toFixed(2)}` : 'N/A';
+                const sbOddsText = runner.sportsbet_odds ? `$${runner.sportsbet_odds.toFixed(2)}` : 'N/A';
+                const boxClass = `box-${runner.box_number}`;
+
+                return `
+                    <div class="flex items-center justify-between py-2 border-b border-white/10 last:border-0 ${scratchedClass}">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full ${boxClass} flex items-center justify-center font-bold text-sm">
+                                ${runner.box_number}
+                            </div>
+                            <div class="font-semibold">${runner.dog_name}</div>
+                        </div>
+                        <div class="flex gap-4 items-center">
+                            <div class="text-right">
+                                <div class="text-xs text-white/60">GHR</div>
+                                <div class="font-bold text-base">${ghrOddsText}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-white/60">SB</div>
+                                <div class="font-bold text-lg text-blue-400">${sbOddsText}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="${cardClass} rounded-2xl p-5 text-white transform transition hover:scale-[1.02]">
+                    <div class="flex items-start justify-between mb-4">
+                        <div>
+                            <div class="text-xs ${badgeColor} px-3 py-1 rounded-full inline-block mb-2 font-bold">
+                                ${badgeText}
+                            </div>
+                            <h2 class="text-xl font-bold">${race.meeting_name} - Race ${race.race_number}</h2>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold">
+                                ${formatDateLabel(race.race_time)}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-black/20 rounded-xl p-4 backdrop-blur-sm">
+                        <div class="text-sm text-white/90 mb-3 font-bold uppercase tracking-wide">
+                            ${race.active_runner_count} RUNNERS
+                        </div>
+                        ${runnersHTML}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update countdown timers
+        function updateCountdowns() {
+            const countdownElements = document.querySelectorAll('.countdown');
+            countdownElements.forEach(elem => {
+                const raceTime = elem.getAttribute('data-race-time');
+                elem.textContent = formatCountdown(raceTime);
+            });
+        }
+
+        // Load races from Supabase
+        async function loadRaces() {
+            if (!supabase) return; // Don't try if initialization failed
+            console.log('Fetching races...');
+            try {
+                // Show loading state
+                document.getElementById('loadingState').classList.remove('hidden');
+                document.getElementById('errorState').classList.add('hidden');
+                document.getElementById('noRacesState').classList.add('hidden');
+                document.getElementById('racesContainer').innerHTML = '';
+
+                // Query races with 4-5 runners AND their runners in one go
+                const { data: races, error: racesError } = await supabase
+                    .from('races')
+                    .select('*, runners(*)')  // Optimized join
+                    .in('active_runner_count', [4, 5])
+                    .order('race_time', { ascending: true });
+
+                if (racesError) throw racesError;
+
+                // Hide loading state
+                document.getElementById('loadingState').classList.add('hidden');
+
+                if (!races || races.length === 0) {
+                    document.getElementById('noRacesState').classList.remove('hidden');
+                    document.getElementById('microFieldCount').textContent = '0';
+                    document.getElementById('opportunityCount').textContent = '0';
+                    return;
+                }
+
+                // Process runners (they are now nested in race objects)
+                // We don't need grouped runners map anymore, races[i].runners has them
+
+
+                // Update stats
+                const microFieldCount = races.filter(r => r.active_runner_count === 4).length;
+                const opportunityCount = races.filter(r => r.active_runner_count === 5).length;
+                document.getElementById('microFieldCount').textContent = microFieldCount;
+                document.getElementById('opportunityCount').textContent = opportunityCount;
+
+                // Sort races: date first, then micro-fields, then grouped by meeting name
+                const sortedRaces = races.sort((a, b) => {
+                    // First: sort by date (today before tomorrow)
+                    if (a.race_time !== b.race_time) {
+                        return a.race_time.localeCompare(b.race_time);
+                    }
+
+                    // Second: micro-fields before opportunities
+                    if (a.active_runner_count === 4 && b.active_runner_count !== 4) return -1;
+                    if (a.active_runner_count !== 4 && b.active_runner_count === 4) return 1;
+
+                    // Third: group by meeting name
+                    if (a.meeting_name !== b.meeting_name) {
+                        return a.meeting_name.localeCompare(b.meeting_name);
+                    }
+
+                    // Fourth: within same meeting, sort by race number
+                    return a.race_number - b.race_number;
+                });
+
+                // Render race cards
+                const container = document.getElementById('racesContainer');
+                sortedRaces.forEach(race => {
+                    // Sorting runners by box number handles the display order
+                    const raceRunners = (race.runners || []).sort((a, b) => a.box_number - b.box_number);
+                    container.innerHTML += createRaceCard(race, raceRunners);
+                });
+
+                // Update last updated time
+                document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString('en-AU');
+
+                // Start countdown timer
+                clearInterval(window.countdownInterval);
+                window.countdownInterval = setInterval(updateCountdowns, 1000);
+
+            } catch (error) {
+                console.error('Error loading races:', error);
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('errorState').classList.remove('hidden');
+                document.getElementById('errorMessage').textContent = error.message;
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRaces();
+
+            // Refresh data every 2 minutes
+            setInterval(loadRaces, 2 * 60 * 1000);
+        });
+    </script>
+
+</body>
+
+</html>
