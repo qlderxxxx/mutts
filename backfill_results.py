@@ -32,17 +32,19 @@ def backfill_results(days_back: int = 7):
     print(f"BACKFILLING RESULTS FOR PAST {days_back} DAYS")
     print(f"{'='*60}\n")
     
-    # Calculate date range
+    # Calculate date range - exclude today, only backfill past races
     today = datetime.now(AEST)
+    yesterday = today - timedelta(days=1)
     start_date = today - timedelta(days=days_back)
+    
     start_date_str = start_date.strftime('%Y-%m-%d')
-    today_str = today.strftime('%Y-%m-%d')
+    yesterday_str = yesterday.strftime('%Y-%m-%d')
     
-    print(f"Date range: {start_date_str} to {today_str}")
+    print(f"Date range: {start_date_str} to {yesterday_str} (excluding today)")
     
-    # Fetch races from the date range
+    # Fetch races from the date range (up to yesterday, not today)
     try:
-        response = supabase.table('races').select('meeting_name, meeting_url, race_time, status').gte('race_time', start_date_str).lte('race_time', today_str).execute()
+        response = supabase.table('races').select('meeting_name, meeting_url, race_time, status').gte('race_time', start_date_str).lt('race_time', yesterday_str + 'T23:59:59').execute()
         races_to_check = response.data
         
         print(f"Found {len(races_to_check)} total races in date range")
@@ -52,22 +54,47 @@ def backfill_results(days_back: int = 7):
         print(f"Found {len(unresulted_races)} races without results")
         
         if not unresulted_races:
-            print("\n✅ All races already have results!")
+            print("\nAll races already have results!")
             return
         
         # Group by meeting_url to avoid duplicate scrapes
         meetings_to_scrape = {}
+        skipped_fake_urls = 0
+        
         for race in unresulted_races:
             meeting_url = race.get('meeting_url')
             meeting_name = race['meeting_name']
             
             # Skip if no meeting_url
             if not meeting_url:
-                print(f"⚠️  Warning: No meeting_url for {meeting_name}, skipping")
+                print(f"Warning: No meeting_url for {meeting_name}, skipping")
                 continue
+            
+            # Skip fake URLs that were constructed from dates (format: /fields/DDMMYY/)
+            # Real URLs from the website have unique IDs like /fields/250176/
+            # Fake URLs look like /fields/220126/ (22 Jan 2026 = 220126)
+            import re
+            if re.search(r'/fields/\d{6}/$', meeting_url):
+                # Check if this looks like a date pattern (DDMMYY)
+                # Day 01-31, Month 01-12, Year 00-99
+                url_id = meeting_url.split('/fields/')[-1].rstrip('/')
+                if len(url_id) == 6:
+                    day = int(url_id[0:2])
+                    month = int(url_id[2:4])
+                    if 1 <= day <= 31 and 1 <= month <= 12:
+                        # This looks like a fake date-based URL, skip it
+                        skipped_fake_urls += 1
+                        continue
             
             if meeting_url not in meetings_to_scrape:
                 meetings_to_scrape[meeting_url] = meeting_name
+        
+        if skipped_fake_urls > 0:
+            print(f"Skipped {skipped_fake_urls} races with fake date-based URLs")
+        
+        if not meetings_to_scrape:
+            print("\nNo races with real meeting URLs found. Only races that were scraped from the form guide can be backfilled.")
+            return
         
         print(f"\nWill scrape results from {len(meetings_to_scrape)} unique meetings\n")
         
@@ -77,7 +104,7 @@ def backfill_results(days_back: int = 7):
             print(f"[{idx}/{len(meetings_to_scrape)}] Scraping results for {meeting_name}...")
             results = scrape_meeting_results(meeting_url, meeting_name)
             all_results.extend(results)
-            print(f"  → Found {len(results)} race results")
+            print(f"  -> Found {len(results)} race results")
         
         # Update database with results
         print(f"\n{'='*60}")
@@ -91,13 +118,13 @@ def backfill_results(days_back: int = 7):
             update_race_results(race_results)
         
         print(f"\n{'='*60}")
-        print(f"✅ BACKFILL COMPLETE!")
+        print(f"BACKFILL COMPLETE!")
         print(f"{'='*60}")
         print(f"Scraped {len(meetings_to_scrape)} meetings")
         print(f"Updated {len(all_results)} races with results")
         
     except Exception as e:
-        print(f"❌ Error during backfill: {e}")
+        print(f"Error during backfill: {e}")
         raise
 
 if __name__ == '__main__':
