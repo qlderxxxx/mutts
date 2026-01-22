@@ -168,6 +168,7 @@
                 Live tracking of 4 & 5 runners
             </p>
 
+
             <!-- View Toggles -->
             <div class="flex justify-center gap-2 mt-4">
                 <button id="btnUpcoming" onclick="setView('upcoming')"
@@ -177,6 +178,22 @@
                 <button id="btnHistory" onclick="setView('history')"
                     class="px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
                     History
+                </button>
+            </div>
+
+            <!-- Date Filter (only visible in Upcoming view) -->
+            <div id="dateFilter" class="flex justify-center gap-2 mt-3">
+                <button id="btnAll" onclick="setDateFilter('all')"
+                    class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">
+                    All
+                </button>
+                <button id="btnToday" onclick="setDateFilter('today')"
+                    class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
+                    Today
+                </button>
+                <button id="btnTomorrow" onclick="setDateFilter('tomorrow')"
+                    class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
+                    Tomorrow
                 </button>
             </div>
         </div>
@@ -290,6 +307,7 @@
         let countdownIntervals = [];
         let cachedRaces = [];
         let currentView = 'upcoming'; // 'upcoming' or 'history'
+        let currentDateFilter = 'all'; // 'all', 'today', or 'tomorrow'
 
         // Set View mode
         function setView(mode) {
@@ -297,16 +315,50 @@
             // Update buttons
             const btnUpcoming = document.getElementById('btnUpcoming');
             const btnHistory = document.getElementById('btnHistory');
+            const dateFilter = document.getElementById('dateFilter');
 
             if (btnUpcoming && btnHistory) {
                 if (mode === 'upcoming') {
                     btnUpcoming.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-white text-black transition";
                     btnHistory.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition";
+                    // Show date filter for upcoming view
+                    if (dateFilter) dateFilter.style.display = 'flex';
                 } else {
                     btnUpcoming.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition";
                     btnHistory.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-white text-black transition";
+                    // Hide date filter for history view
+                    if (dateFilter) dateFilter.style.display = 'none';
                 }
             }
+            if (typeof renderRaces === 'function') {
+                renderRaces();
+            }
+        }
+
+        // Set Date Filter
+        function setDateFilter(filter) {
+            currentDateFilter = filter;
+            // Update buttons
+            const btnAll = document.getElementById('btnAll');
+            const btnToday = document.getElementById('btnToday');
+            const btnTomorrow = document.getElementById('btnTomorrow');
+
+            if (btnAll && btnToday && btnTomorrow) {
+                // Reset all buttons
+                btnAll.className = "px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition";
+                btnToday.className = "px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition";
+                btnTomorrow.className = "px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition";
+
+                // Highlight selected button
+                if (filter === 'all') {
+                    btnAll.className = "px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition";
+                } else if (filter === 'today') {
+                    btnToday.className = "px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition";
+                } else if (filter === 'tomorrow') {
+                    btnTomorrow.className = "px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition";
+                }
+            }
+
             if (typeof renderRaces === 'function') {
                 renderRaces();
             }
@@ -452,17 +504,36 @@
             // This ensures "Today" matches even if UTC date is yesterday
             const todayStr = now.toLocaleDateString('en-CA');
 
+            // Calculate tomorrow's date
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = tomorrow.toLocaleDateString('en-CA');
+
             let displayRaces = cachedRaces.filter(race => {
                 // race_time is ISO string
                 if (!race.race_time) return false;
                 const raceDateStr = race.race_time.split('T')[0];
 
-                // Simple string comparison works for ISO dates (YYYY-MM-DD)
+                // Filter by view (upcoming vs history)
+                let passesViewFilter = false;
                 if (currentView === 'upcoming') {
-                    return raceDateStr >= todayStr;
+                    passesViewFilter = raceDateStr >= todayStr;
                 } else {
-                    return raceDateStr < todayStr;
+                    passesViewFilter = raceDateStr < todayStr;
                 }
+
+                if (!passesViewFilter) return false;
+
+                // Filter by date (only for upcoming view)
+                if (currentView === 'upcoming' && currentDateFilter !== 'all') {
+                    if (currentDateFilter === 'today') {
+                        return raceDateStr === todayStr;
+                    } else if (currentDateFilter === 'tomorrow') {
+                        return raceDateStr === tomorrowStr;
+                    }
+                }
+
+                return true;
             });
 
             // Handle empty state
