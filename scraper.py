@@ -184,11 +184,17 @@ def count_active_runners(runner_elements) -> tuple[int, List[Dict]]:
             # 2. Check for SCR as a whole word in text
             # 3. Check for SCRATCHED in text
             is_scratched = False
+            scratch_reason = None
             runner_classes = runner_elem.get('class', [])
             if 'form-guide-field-selection--scratched' in runner_classes:
                 is_scratched = True
-            elif re.search(r'\bSCR\b', runner_text_upper) or 'SCRATCHED' in runner_text_upper:
+                scratch_reason = "CSS class"
+            elif re.search(r'\bSCR\b', runner_text_upper):
                 is_scratched = True
+                scratch_reason = "SCR in text"
+            elif 'SCRATCHED' in runner_text_upper:
+                is_scratched = True
+                scratch_reason = "SCRATCHED in text"
             
             # Check for reserves (typically box 9-10 or marked as RES)
             # Skip reserves unless they have a confirmed run
@@ -236,7 +242,8 @@ def count_active_runners(runner_elements) -> tuple[int, List[Dict]]:
                 'box_number': box_number,
                 'ghr_odds': ghr_odds,
                 'sportsbet_odds': None, # data not available in static HTML
-                'is_scratched': is_scratched
+                'is_scratched': is_scratched,
+                'scratch_reason': scratch_reason if is_scratched else None
             }
             
             active_runners.append(runner_data)
@@ -255,7 +262,7 @@ def count_active_runners(runner_elements) -> tuple[int, List[Dict]]:
             print(f"  Scratched runners detected:")
             for r in active_runners:
                 if r['is_scratched']:
-                    print(f"    - Box {r['box_number']}: {r['dog_name']}")
+                    print(f"    - Box {r['box_number']}: {r['dog_name']} (Reason: {r.get('scratch_reason', 'unknown')})")
     
     return active_count, active_runners
 
