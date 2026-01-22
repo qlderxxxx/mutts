@@ -7,7 +7,6 @@ import os
 import sys
 from datetime import datetime, timedelta
 from typing import List, Dict
-import pytz
 from supabase import create_client
 
 # Import the scraping functions from the main scraper
