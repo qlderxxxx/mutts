@@ -454,15 +454,18 @@
 
         // Format date label (Today/Tomorrow)
         function formatDateLabel(raceTime) {
-            // raceTime is a string like "2026-01-21..."
             if (!raceTime) return '';
-            const dateStr = raceTime.split('T')[0];
-            const today = new Date().toISOString().split('T')[0];
+            // Convert to local date string (YYYY-MM-DD)
+            const raceDate = new Date(raceTime);
+            const dateStr = raceDate.toLocaleDateString('en-CA');
 
-            // Calculate tomorrow safer way
-            const tmr = new Date();
+            const now = new Date();
+            const today = now.toLocaleDateString('en-CA');
+
+            // Calculate tomorrow
+            const tmr = new Date(now);
             tmr.setDate(tmr.getDate() + 1);
-            const tomorrow = tmr.toISOString().split('T')[0];
+            const tomorrow = tmr.toLocaleDateString('en-CA');
 
             if (dateStr === today) {
                 return 'Today';
@@ -476,24 +479,67 @@
         // Create race card HTML
         function createRaceCard(race, runners) {
             const isMicroField = race.active_runner_count === 4;
+            const isResulted = race.status === 'resulted' || (race.top_2_in_top_2 !== null);
+
             const cardClass = isMicroField ? 'micro-field-card' : 'opportunity-card';
             // Badge text is now just the runner count
             const badgeText = isMicroField ? '4 RUNNERS' : '5 RUNNERS';
             const badgeColor = isMicroField ? 'bg-red-900' : 'bg-orange-900';
 
-            // Sort runners by box number
-            const sortedRunners = runners.sort((a, b) => a.box_number - b.box_number);
+            // Sort logic
+            let sortedRunners = [...runners];
+            if (isResulted) {
+                // Sort by finishing position (1, 2, 3...) then box
+                sortedRunners.sort((a, b) => {
+                    // Pull nulls/undefined to the bottom
+                    const posA = a.finishing_position || 999;
+                    const posB = b.finishing_position || 999;
+                    if (posA !== posB) return posA - posB;
+                    // Tie-breaker: box number
+                    return a.box_number - b.box_number;
+                });
+            } else {
+                // Default: Sort by box number
+                sortedRunners.sort((a, b) => a.box_number - b.box_number);
+            }
 
             const runnersHTML = sortedRunners.map(runner => {
                 const scratchedClass = runner.is_scratched ? 'opacity-50 line-through' : '';
                 const ghrOddsText = runner.ghr_odds ? `$${runner.ghr_odds.toFixed(2)}` : '-';
-                const sbOddsText = runner.sportsbet_odds ? `$${runner.sportsbet_odds.toFixed(2)}` : '-';
+
+                // For resulted races, show SP. For upcoming, show SB fixed odds.
+                let secondOddsLabel = 'SB';
+                let secondOddsText = runner.sportsbet_odds ? `$${runner.sportsbet_odds.toFixed(2)}` : '-';
+                let secondOddsClass = 'text-blue-300'; // Default SB blue
+
+                if (isResulted) {
+                    secondOddsLabel = 'SP';
+                    secondOddsText = runner.starting_price ? `$${runner.starting_price.toFixed(2)}` : '-';
+                    secondOddsClass = 'text-yellow-300'; // SP in yellow/gold
+                }
+
                 const boxClass = `box-${runner.box_number}`;
+
+                // Position Indicator (Gold/Silver/Bronze)
+                let posIndicator = '';
+                if (isResulted && runner.finishing_position) {
+                    if (runner.finishing_position === 1) {
+                        posIndicator = `<div class="w-4 text-center font-bold text-yellow-400 mr-1 text-[10px]">1st</div>`;
+                    } else if (runner.finishing_position === 2) {
+                        posIndicator = `<div class="w-4 text-center font-bold text-zinc-400 mr-1 text-[10px]">2nd</div>`;
+                    } else if (runner.finishing_position === 3) {
+                        posIndicator = `<div class="w-4 text-center font-bold text-amber-700 mr-1 text-[10px]">3rd</div>`;
+                    } else {
+                        // Spacer for non-placed runners to align boxes
+                        posIndicator = `<div class="w-4 mr-1"></div>`;
+                    }
+                }
 
                 return `
                     <div class="flex items-center justify-between py-0.5 border-b border-white/5 last:border-0 ${scratchedClass}">
-                        <div class="flex items-center gap-1.5 min-w-0">
-                            <div class="w-4 h-4 rounded-full ${boxClass} flex items-center justify-center font-bold text-[9px] flex-shrink-0">
+                        <div class="flex items-center min-w-0">
+                            ${posIndicator}
+                            <div class="w-4 h-4 rounded-full ${boxClass} flex items-center justify-center font-bold text-[9px] flex-shrink-0 mr-1.5">
                                 ${runner.box_number}
                             </div>
                             <div class="font-medium text-xs text-white/90 truncate pr-1">${runner.dog_name}</div>
@@ -504,27 +550,35 @@
                                 <div class="font-bold text-[10px] leading-tight">${ghrOddsText}</div>
                             </div>
                             <div class="text-right w-[28px]">
-                                <div class="text-[8px] text-white/40 leading-none">SB</div>
-                                <div class="font-bold text-[10px] leading-tight text-blue-300">${sbOddsText}</div>
+                                <div class="text-[8px] text-white/40 leading-none">${secondOddsLabel}</div>
+                                <div class="font-bold text-[10px] leading-tight ${secondOddsClass}">${secondOddsText}</div>
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
 
+            // Resulted Label
+            const resultedLabel = isResulted ?
+                `<span class="ml-2 text-[10px] bg-green-900/80 text-green-300 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">Resulted</span>`
+                : '';
+
             return `
                 <div class="${cardClass} rounded-lg p-2 text-white transform transition hover:scale-[1.01] hover:shadow-lg">
                     <div class="flex items-center justify-between mb-1">
-                        <div class="flex items-center gap-1.5 min-w-0">
+                        <div class="flex items-center gap-1.5 min-w-0 flex-1">
                             <div class="text-[9px] ${badgeColor} px-1.5 rounded-sm text-white/90 font-bold uppercase tracking-wider flex-shrink-0">
                                 ${badgeText}
                             </div>
-                            <h2 class="text-xs font-bold leading-tight truncate text-white/90">${race.meeting_name} ${race.race_number}</h2>
+                            <h2 class="text-xs font-bold leading-tight truncate text-white/90">
+                                ${race.meeting_name} ${race.race_number}
+                            </h2>
                         </div>
-                        <div class="text-right pl-1 flex-shrink-0">
+                        <div class="text-right pl-1 flex-shrink-0 flex items-center">
                             <div class="text-xs font-bold whitespace-nowrap opacity-75">
                                 ${formatDateLabel(race.race_time)}
                             </div>
+                            ${resultedLabel}
                         </div>
                     </div>
                     
@@ -567,14 +621,17 @@
             let displayRaces = cachedRaces.filter(race => {
                 // race_time is ISO string
                 if (!race.race_time) return false;
-                const raceDateStr = race.race_time.split('T')[0];
+
+                // Convert UTC race time to local date string for comparison
+                const raceDateStr = new Date(race.race_time).toLocaleDateString('en-CA');
 
                 // Filter by view (upcoming vs history)
                 let passesViewFilter = false;
                 if (currentView === 'upcoming') {
                     passesViewFilter = raceDateStr >= todayStr;
                 } else {
-                    passesViewFilter = raceDateStr < todayStr;
+                    // History view: Must be in the past AND have valid results for stats
+                    passesViewFilter = raceDateStr < todayStr && race.top_2_in_top_2 !== null;
                 }
 
                 if (!passesViewFilter) return false;
@@ -585,12 +642,12 @@
                     return false;
                 }
 
-                // Filter by date (only for upcoming view)
+                // Filter by Date (Today/Tomorrow/All) - ONLY applied in UPCOMING view
                 if (currentView === 'upcoming' && currentDateFilter !== 'all') {
                     if (currentDateFilter === 'today') {
-                        return raceDateStr === todayStr;
+                        if (raceDateStr !== todayStr) return false;
                     } else if (currentDateFilter === 'tomorrow') {
-                        return raceDateStr === tomorrowStr;
+                        if (raceDateStr !== tomorrowStr) return false;
                     }
                 }
 
@@ -611,15 +668,15 @@
             // But user asked for breakdown. Let's calculate based on ALL cached races that are Future or Today
 
             const statsRaces = cachedRaces.filter(race => {
-                const rDate = race.race_time.split('T')[0];
+                const rDate = new Date(race.race_time).toLocaleDateString('en-CA');
                 return rDate >= todayStr; // Only count Today & Future for the dashboard
             });
 
             function countStats(runnerCount) {
                 const total = statsRaces.filter(r => r.active_runner_count === runnerCount).length;
-                const todayCount = statsRaces.filter(r => r.active_runner_count === runnerCount && r.race_time.split('T')[0] === todayStr).length;
+                const todayCount = statsRaces.filter(r => r.active_runner_count === runnerCount && new Date(r.race_time).toLocaleDateString('en-CA') === todayStr).length;
                 // Anything > todayStr is tomorrow+
-                const tomorrowCount = statsRaces.filter(r => r.active_runner_count === runnerCount && r.race_time.split('T')[0] > todayStr).length;
+                const tomorrowCount = statsRaces.filter(r => r.active_runner_count === runnerCount && new Date(r.race_time).toLocaleDateString('en-CA') > todayStr).length;
                 return { total, todayCount, tomorrowCount };
             }
 
@@ -637,7 +694,7 @@
             // History Stats - Top 2 in Top 2 Strike Rates
             if (currentView === 'history') {
                 const historyRaces = cachedRaces.filter(race => {
-                    const rDate = race.race_time.split('T')[0];
+                    const rDate = new Date(race.race_time).toLocaleDateString('en-CA');
                     return rDate < todayStr && race.top_2_in_top_2 !== null; // Only historical races with results
                 });
 
@@ -696,8 +753,8 @@
                 }
 
                 // Second: Sort by date
-                const dateA = a.race_time.split('T')[0];
-                const dateB = b.race_time.split('T')[0];
+                const dateA = new Date(a.race_time).toLocaleDateString('en-CA');
+                const dateB = new Date(b.race_time).toLocaleDateString('en-CA');
                 if (dateA !== dateB) return dateA.localeCompare(dateB);
 
                 // Third: group by meeting name

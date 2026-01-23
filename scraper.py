@@ -713,6 +713,14 @@ def update_race_results(race_results: Dict):
                 }).eq('id', race_id).execute()
                 
                 print(f"Updated results: {meeting_name} R{race_number} - Top 2 in Top 2: {top_2_in_top_2}")
+        else:
+            # Handle case where we have results but valid SPs are missing (e.g. all $0)
+            # We still mark as resulted so it doesn't stay 'upcoming', but top_2_in_top_2 remains null
+            # This ensures it doesn't skew stats but shows we attempted to result it
+            supabase.table('races').update({
+                'status': 'resulted'
+            }).eq('id', race_id).execute()
+            print(f"Updated results: {meeting_name} R{race_number} - Resulted but invalid SP comparison (skipped Top 2 calc)")
         
     except Exception as e:
         print(f"Error updating race results: {e}")
