@@ -205,17 +205,6 @@
                         Tomorrow
                     </button>
                 </div>
-
-                <div id="distanceFilterContainer" class="flex">
-                    <select id="distanceFilter" onchange="setDistanceFilter(this.value)"
-                        class="bg-zinc-800 text-zinc-400 text-xs font-bold px-3 py-1 rounded-full outline-none hover:bg-zinc-700 transition cursor-pointer border border-zinc-700">
-                        <option value="all">Any Dist</option>
-                        <option value="short">
-                            < 400m</option>
-                        <option value="medium">400-500m</option>
-                        <option value="long">> 500m</option>
-                    </select>
-                </div>
             </div>
         </div>
     </header>
@@ -593,7 +582,8 @@
                 short: {},   // By Field Size (< $2.00)
                 boxGeneral: {}, // By Box (1-8) -> Field Size
                 boxShort: {},   // By Box (1-8) -> Field Size
-                tracks: {}      // By Track Name
+                tracks: {},      // By Track Name
+                distances: {}    // By Distance
             };
 
             // Initialize Grid structures
@@ -1106,11 +1096,10 @@
                                 ${badgeText}
                             </div>
                             <h2 class="text-xs font-bold leading-tight truncate text-white/90">
-                                ${race.meeting_name} ${race.race_number}
+                                ${race.meeting_name} ${race.race_number} ${race.distance_meters ? `<span class="opacity-60 font-normal ml-1">${race.distance_meters}m</span>` : ''}
                             </h2>
                         </div>
                         <div class="text-right pl-1 flex-shrink-0 flex items-center gap-2">
-                             ${race.distance_meters ? `<span class="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-1 rounded">${race.distance_meters}m</span>` : ''}
                             <div class="text-xs font-bold whitespace-nowrap opacity-75">
                                 ${formatDateLabel(race.race_time)}
                             </div>
