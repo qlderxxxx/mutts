@@ -348,7 +348,8 @@ def scrape_meeting_results(meeting_url: str, meeting_name: str) -> List[Dict]:
                         try:
                             # Force click or just click
                             button.click(timeout=2000)
-                            page.wait_for_timeout(1500)
+                            # Increase wait time to ensure table loads
+                            page.wait_for_timeout(3000)
                         except Exception as click_err:
                             # If click fails (e.g. pointer-events: none), it might be the active one
                             print(f"    Click validation: {click_err} (might be active race)")
@@ -365,6 +366,10 @@ def scrape_meeting_results(meeting_url: str, meeting_name: str) -> List[Dict]:
                             if race_data:
                                 results.append(race_data)
                                 print(f"    -> Scraped {len(race_data['results'])} runners")
+                            else:
+                                print(f"    -> Parsed no data for R{race_num}")
+                        else:
+                            print(f"    -> Warning: No results table found for R{race_num}")
                 
                 except Exception as e:
                     print(f"  Error scraping race {i+1}: {e}")
