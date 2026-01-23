@@ -630,8 +630,7 @@
                 if (currentView === 'upcoming') {
                     passesViewFilter = raceDateStr >= todayStr;
                 } else {
-                    // History view: Must be in the past AND have valid results for stats
-                    passesViewFilter = raceDateStr < todayStr && race.top_2_in_top_2 !== null;
+                    passesViewFilter = raceDateStr < todayStr;
                 }
 
                 if (!passesViewFilter) return false;
