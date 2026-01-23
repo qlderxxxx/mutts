@@ -83,7 +83,8 @@
         /* Standard Australian Greyhound Box Colors */
         .box-1 {
             background: #ef4444;
-            /* Red */
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
         .box-2 {
@@ -92,44 +93,44 @@
                     #000000 5px,
                     #ffffff 5px,
                     #ffffff 10px);
-            color: #ef4444;
-            /* Readability boost */
+            color: #ef4444 !important;
+            /* Force Red */
             font-weight: 900;
             text-shadow: 0 0 2px #ffffff, 0 0 4px #ffffff;
         }
 
         .box-3 {
             background: #ffffff;
-            /* White */
             color: #000000;
         }
 
         .box-4 {
             background: #2563eb;
-            /* Blue */
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
         .box-5 {
             background: #eab308;
-            /* Yellow */
             color: #000000;
         }
 
         .box-6 {
             background: #16a34a;
-            /* Green */
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
         .box-7 {
             background: #000000;
-            /* Black */
-            color: #ffffff;
+            color: #ffffff !important;
+            /* Force White */
             font-weight: bold;
         }
 
         .box-8 {
             background: #ec4899;
-            /* Pink */
+            color: black;
         }
 
         .box-9 {
@@ -802,7 +803,9 @@
                         ${th('T2inT2 %', 'top2in2Rate')}
                         ${th('4-Run Count', 'races4')}
                         ${th('Top2in2 (4)', 'top2in2Rate4')}
+                        ${th('Box 1 Fav Wins', 'box1FavWins')}
                         ${th('Box 1 Fav %', 'box1FavRate')}
+                        ${th('Box 1 Short Wins', 'box1ShortFavWins')}
                         ${th('Box 1 Short %', 'box1ShortFavRate')}
                     `;
                 }
@@ -818,7 +821,9 @@
                         <td class="px-2 py-3 text-center text-zinc-300">${t.top2in2Rate.toFixed(1)}%</td>
                         <td class="px-2 py-3 text-center text-zinc-400">${t.races4}</td>
                         <td class="px-2 py-3 text-center text-zinc-300">${t.races4 > 0 ? t.top2in2Rate4.toFixed(1) + '%' : '-'}</td>
+                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1FavWins}</td>
                         <td class="px-2 py-3 text-center text-zinc-400">${t.box1FavRuns > 0 ? t.box1FavRate.toFixed(1) + '%' : '-'}</td>
+                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1ShortFavWins}</td>
                         <td class="px-2 py-3 text-center text-zinc-400">${t.box1ShortFavRuns > 0 ? t.box1ShortFavRate.toFixed(1) + '%' : '-'}</td>
                     </tr>
                 `).join('');
