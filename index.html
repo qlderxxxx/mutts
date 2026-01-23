@@ -383,6 +383,7 @@
                                         <th class="px-2 py-2">6 Runners</th>
                                         <th class="px-2 py-2">7 Runners</th>
                                         <th class="px-2 py-2">8 Runners</th>
+                                        <th class="px-2 py-2 text-white font-bold border-l border-zinc-700">All</th>
                                     </tr>
                                 </thead>
                                 <tbody id="statsBoxAll" class="bg-zinc-900/20 divide-y divide-zinc-800/50"></tbody>
@@ -403,6 +404,8 @@
                                                 <th class="px-2 py-2">6 Runners</th>
                                                 <th class="px-2 py-2">7 Runners</th>
                                                 <th class="px-2 py-2">8 Runners</th>
+                                                <th class="px-2 py-2 text-white font-bold border-l border-zinc-700">All
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody id="statsBoxShort" class="bg-zinc-900/20 divide-y divide-zinc-800/50">
@@ -663,12 +666,12 @@
             // --- HTML Generation Helpers ---
             const calcPct = (wins, total) => total > 0 ? ((wins / total) * 100).toFixed(1) + '%' : '-';
             const rateClass = (wins, total) => {
-                if (total === 0) return 'text-zinc-600';
+                if (total === 0) return 'text-zinc-500'; // Was zinc-600
                 const pct = (wins / total) * 100;
                 if (pct >= 50) return 'text-green-400 font-bold';
-                if (pct >= 40) return 'text-green-200';
+                if (pct >= 40) return 'text-green-300'; // Was green-200 (pastel), 300 is slightly more vibrant green
                 if (pct >= 30) return 'text-zinc-300';
-                return 'text-zinc-500';
+                return 'text-zinc-400'; // Was zinc-500
             };
 
             // 1. General & Short Tables
@@ -727,16 +730,16 @@
 
                         const pct = d.runs > 0 ? Math.round((d.wins / d.runs) * 100) : 0;
                         const cellContent = d.runs > 0
-                            ? `<div class="flex flex-col items-center"><span class="text-xs font-bold ${pct >= 40 ? 'text-green-400' : 'text-zinc-300'}">${d.wins}/${d.runs}</span><span class="text-[9px] text-zinc-500">${pct}%</span></div>`
-                            : '<span class="text-zinc-700">-</span>';
+                            ? `<div class="flex flex-col items-center"><span class="text-xs font-bold ${pct >= 40 ? 'text-green-400' : 'text-zinc-200'}">${d.wins}/${d.runs}</span><span class="text-[9px] text-zinc-400">${pct}%</span></div>`
+                            : '<span class="text-zinc-600">-</span>';
                         rowHtml += `<td class="px-2 py-2 border-l border-zinc-800/50 text-center">${cellContent}</td>`;
                     });
 
                     // Add Total Column
                     const totalPct = totalRuns > 0 ? Math.round((totalWins / totalRuns) * 100) : 0;
                     const totalContent = totalRuns > 0
-                        ? `<div class="flex flex-col items-center"><span class="text-xs font-bold ${totalPct >= 40 ? 'text-green-400' : 'text-zinc-300'}">${totalWins}/${totalRuns}</span><span class="text-[9px] text-zinc-500">${totalPct}%</span></div>`
-                        : '<span class="text-zinc-700">-</span>';
+                        ? `<div class="flex flex-col items-center"><span class="text-xs font-bold ${totalPct >= 40 ? 'text-green-400' : 'text-zinc-200'}">${totalWins}/${totalRuns}</span><span class="text-[9px] text-zinc-400">${totalPct}%</span></div>`
+                        : '<span class="text-zinc-600">-</span>';
                     rowHtml += `<td class="px-2 py-2 border-l border-zinc-700 text-center bg-zinc-800/30">${totalContent}</td>`;
 
                     rowHtml += '</tr>';
@@ -792,7 +795,9 @@
                     thead.innerHTML = `
                         ${th('Track', 'name', false)}
                         ${th('Races', 'races')}
+                        ${th('Fav Wins', 'favWins')}
                         ${th('Fav SR%', 'favRate')}
+                        ${th('Short Wins', 'shortWins')}
                         ${th('Short SR%', 'shortFavRate')}
                         ${th('T2inT2 %', 'top2in2Rate')}
                         ${th('4-Run Count', 'races4')}
@@ -805,14 +810,16 @@
                 tracksBody.innerHTML = sortedTracks.map(t => `
                     <tr class="hover:bg-white/5 transition border-b border-zinc-800/30 last:border-0">
                         <td class="px-2 py-3 font-medium text-white truncate max-w-[120px]">${t.name}</td>
-                        <td class="px-2 py-3 text-center text-zinc-400">${t.races}</td>
-                        <td class="px-2 py-3 text-center font-bold ${t.favRate >= 40 ? 'text-green-400' : 'text-zinc-500'}">${t.favRate.toFixed(1)}%</td>
-                        <td class="px-2 py-3 text-center text-zinc-500">${t.shortRaces > 0 ? t.shortFavRate.toFixed(1) + '%' : '-'}</td>
-                        <td class="px-2 py-3 text-center text-zinc-400">${t.top2in2Rate.toFixed(1)}%</td>
-                        <td class="px-2 py-3 text-center text-zinc-500">${t.races4}</td>
-                        <td class="px-2 py-3 text-center text-zinc-400">${t.races4 > 0 ? t.top2in2Rate4.toFixed(1) + '%' : '-'}</td>
-                        <td class="px-2 py-3 text-center text-zinc-500">${t.box1FavRuns > 0 ? t.box1FavRate.toFixed(1) + '%' : '-'}</td>
-                        <td class="px-2 py-3 text-center text-zinc-500">${t.box1ShortFavRuns > 0 ? t.box1ShortFavRate.toFixed(1) + '%' : '-'}</td>
+                        <td class="px-2 py-3 text-center text-zinc-300">${t.races}</td>
+                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.favWins}</td>
+                        <td class="px-2 py-3 text-center font-bold ${t.favRate >= 40 ? 'text-green-400' : 'text-zinc-400'}">${t.favRate.toFixed(1)}%</td>
+                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.shortWins}</td>
+                        <td class="px-2 py-3 text-center text-zinc-400">${t.shortRaces > 0 ? t.shortFavRate.toFixed(1) + '%' : '-'}</td>
+                        <td class="px-2 py-3 text-center text-zinc-300">${t.top2in2Rate.toFixed(1)}%</td>
+                        <td class="px-2 py-3 text-center text-zinc-400">${t.races4}</td>
+                        <td class="px-2 py-3 text-center text-zinc-300">${t.races4 > 0 ? t.top2in2Rate4.toFixed(1) + '%' : '-'}</td>
+                        <td class="px-2 py-3 text-center text-zinc-400">${t.box1FavRuns > 0 ? t.box1FavRate.toFixed(1) + '%' : '-'}</td>
+                        <td class="px-2 py-3 text-center text-zinc-400">${t.box1ShortFavRuns > 0 ? t.box1ShortFavRate.toFixed(1) + '%' : '-'}</td>
                     </tr>
                 `).join('');
             };
