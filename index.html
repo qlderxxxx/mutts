@@ -189,20 +189,33 @@
                 </button>
             </div>
 
-            <!-- Date Filter (only visible in Upcoming view) -->
-            <div id="dateFilter" class="flex justify-center gap-2 mt-3">
-                <button id="btnAll" onclick="setDateFilter('all')"
-                    class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">
-                    All
-                </button>
-                <button id="btnToday" onclick="setDateFilter('today')"
-                    class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
-                    Today
-                </button>
-                <button id="btnTomorrow" onclick="setDateFilter('tomorrow')"
-                    class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
-                    Tomorrow
-                </button>
+            <!-- Date Filter & Distance Filter (only visible in Upcoming view) -->
+            <div id="filtersContainer" class="flex flex-wrap justify-center gap-2 mt-3">
+                <div id="dateFilter" class="flex gap-2">
+                    <button id="btnAll" onclick="setDateFilter('all')"
+                        class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">
+                        All
+                    </button>
+                    <button id="btnToday" onclick="setDateFilter('today')"
+                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
+                        Today
+                    </button>
+                    <button id="btnTomorrow" onclick="setDateFilter('tomorrow')"
+                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
+                        Tomorrow
+                    </button>
+                </div>
+
+                <div id="distanceFilterContainer" class="flex">
+                    <select id="distanceFilter" onchange="setDistanceFilter(this.value)"
+                        class="bg-zinc-800 text-zinc-400 text-xs font-bold px-3 py-1 rounded-full outline-none hover:bg-zinc-700 transition cursor-pointer border border-zinc-700">
+                        <option value="all">Any Dist</option>
+                        <option value="short">
+                            < 400m</option>
+                        <option value="medium">400-500m</option>
+                        <option value="long">> 500m</option>
+                    </select>
+                </div>
             </div>
         </div>
     </header>
@@ -440,6 +453,25 @@
                     </table>
                 </div>
             </section>
+
+            <!-- 5. Distance Stats -->
+            <section class="mt-6">
+                <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                    <span>📏</span> Distance Performance
+                </h3>
+                <div class="overflow-x-auto rounded-lg border border-zinc-800">
+                    <table class="w-full text-sm text-left text-zinc-400">
+                        <thead class="text-xs text-zinc-200 uppercase bg-zinc-900/50">
+                            <tr>
+                                <!-- JS renders headers -->
+                            </tr>
+                        </thead>
+                        <tbody id="statsDistances" class="bg-zinc-900/20 divide-y divide-zinc-800/50">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
 
         <!-- Last Updated -->
@@ -491,8 +523,8 @@
         let cachedRaces = [];
         let currentView = 'upcoming'; // 'upcoming' or 'history'
         let currentDateFilter = 'all'; // 'all', 'today', or 'tomorrow'
+        let currentDistanceFilter = 'all'; // 'all', 'short', 'medium', 'long'
 
-        // Set View mode
         // Set View mode
         function setView(mode) {
             currentView = mode;
@@ -501,7 +533,7 @@
             const btnHistory = document.getElementById('btnHistory');
             const btnStats = document.getElementById('btnStats');
 
-            const dateFilter = document.getElementById('dateFilter');
+            const filtersContainer = document.getElementById('filtersContainer'); // Changed from dateFilter
             const statsUpcoming = document.getElementById('statsUpcoming');
             const statsHistory = document.getElementById('statsHistory');
 
@@ -519,7 +551,7 @@
             // Container Visibility
             if (mode === 'stats') {
                 if (racesContainer) racesContainer.classList.add('hidden');
-                if (dateFilter) dateFilter.style.display = 'none';
+                if (filtersContainer) filtersContainer.style.display = 'none';
                 if (statsUpcoming) statsUpcoming.classList.add('hidden');
                 if (statsHistory) statsHistory.classList.add('hidden');
                 if (statsView) statsView.classList.remove('hidden');
@@ -530,12 +562,12 @@
                 if (racesContainer) racesContainer.classList.remove('hidden');
 
                 if (mode === 'upcoming') {
-                    if (dateFilter) dateFilter.style.display = 'flex';
+                    if (filtersContainer) filtersContainer.style.display = 'flex';
                     if (statsUpcoming) statsUpcoming.classList.remove('hidden');
                     if (statsHistory) statsHistory.classList.add('hidden');
                     document.getElementById('noRacesState').classList.add('hidden');
                 } else {
-                    if (dateFilter) dateFilter.style.display = 'none';
+                    if (filtersContainer) filtersContainer.style.display = 'none';
                     if (statsUpcoming) statsUpcoming.classList.add('hidden');
                     if (statsHistory) statsHistory.classList.remove('hidden');
                 }
@@ -634,8 +666,8 @@
 
                     // Track Stats: Box 1 Favs
                     if (fav.box_number === 1) {
-                        stats.tracks[race.meeting_name].box1FavRuns++;
-                        if (isShortPriced) stats.tracks[race.meeting_name].box1ShortFavRuns++;
+                        stats.tracks[trackKey].box1FavRuns++;
+                        if (isShortPriced) stats.tracks[trackKey].box1ShortFavRuns++;
                     }
 
                     if (fav.finishing_position === 1) {
@@ -648,18 +680,18 @@
 
                         // Track Stats: Box 1 Fav Wins
                         if (fav.box_number === 1) {
-                            stats.tracks[race.meeting_name].box1FavWins++;
-                            if (isShortPriced) stats.tracks[race.meeting_name].box1ShortFavWins++;
+                            stats.tracks[trackKey].box1FavWins++;
+                            if (isShortPriced) stats.tracks[trackKey].box1ShortFavWins++;
                         }
                     }
                 });
 
                 if (favWon) {
                     stats.general[runnerCount].wins++;
-                    stats.tracks[race.meeting_name].favWins++;
+                    stats.tracks[trackKey].favWins++;
                     if (isShortPriced) {
                         stats.short[runnerCount].wins++;
-                        stats.tracks[race.meeting_name].shortWins++;
+                        stats.tracks[trackKey].shortWins++;
                     }
                 }
             });
@@ -829,6 +861,67 @@
                 `).join('');
             };
             renderTrackTable();
+
+            // 4. Distance Stats
+            const renderDistanceTable = () => {
+                const tbody = document.getElementById('statsDistances');
+                if (!tbody) return;
+
+                const sortedDistances = Object.entries(stats.distances)
+                    .map(([name, d]) => ({
+                        name,
+                        ...d,
+                        favRate: d.races > 0 ? (d.favWins / d.races) * 100 : 0,
+                        shortFavRate: d.shortRaces > 0 ? (d.shortWins / d.shortRaces) * 100 : 0,
+                        top2in2Rate: d.races > 0 ? (d.top2in2 / d.races) * 100 : 0,
+                        top2in2Rate4: d.races4 > 0 ? (d.top2in2_4 / d.races4) * 100 : 0,
+                        box1FavRate: d.box1FavRuns > 0 ? (d.box1FavWins / d.box1FavRuns) * 100 : 0,
+                        box1ShortFavRate: d.box1ShortFavRuns > 0 ? (d.box1ShortFavWins / d.box1ShortFavRuns) * 100 : 0
+                    }))
+                    .filter(t => t.races >= 1)
+                    .sort((a, b) => a.rawDist - b.rawDist); // Always sort by distance length
+
+                // Simple headers for Distance (no sort needed usually, but could add)
+                const table = document.getElementById('statsDistances').closest('table');
+                const thead = table ? table.querySelector('thead tr') : null;
+                if (thead) {
+                    // Reuse similar headers
+                    thead.innerHTML = `
+                         <th class="px-2 py-3 text-center">Distance</th>
+                         <th class="px-2 py-3 text-center">Races</th>
+                         <th class="px-2 py-3 text-center">Fav Wins</th>
+                         <th class="px-2 py-3 text-center">Fav SR%</th>
+                         <th class="px-2 py-3 text-center">Short Wins</th>
+                         <th class="px-2 py-3 text-center">Short SR%</th>
+                         <th class="px-2 py-3 text-center">T2inT2 %</th>
+                         <th class="px-2 py-3 text-center">4-Run Count</th>
+                         <th class="px-2 py-3 text-center">Top2in2 (4)</th>
+                         <th class="px-2 py-3 text-center">B1 Fav Wins</th>
+                         <th class="px-2 py-3 text-center">B1 Fav %</th>
+                         <th class="px-2 py-3 text-center">B1 Short Wins</th>
+                         <th class="px-2 py-3 text-center">B1 Short %</th>
+                     `;
+                }
+
+                tbody.innerHTML = sortedDistances.map(t => `
+                    <tr class="hover:bg-white/5 transition border-b border-zinc-800/30 last:border-0">
+                        <td class="px-2 py-3 font-medium text-white text-center">${t.name}</td>
+                        <td class="px-2 py-3 text-center text-zinc-300">${t.races}</td>
+                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.favWins}</td>
+                        <td class="px-2 py-3 text-center font-bold ${t.favRate >= 40 ? 'text-green-400' : 'text-zinc-400'}">${t.favRate.toFixed(1)}%</td>
+                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.shortWins}</td>
+                        <td class="px-2 py-3 text-center text-zinc-400">${t.shortRaces > 0 ? t.shortFavRate.toFixed(1) + '%' : '-'}</td>
+                        <td class="px-2 py-3 text-center text-zinc-300">${t.top2in2Rate.toFixed(1)}%</td>
+                        <td class="px-2 py-3 text-center text-zinc-400">${t.races4}</td>
+                        <td class="px-2 py-3 text-center text-zinc-300">${t.races4 > 0 ? t.top2in2Rate4.toFixed(1) + '%' : '-'}</td>
+                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1FavWins}</td>
+                        <td class="px-2 py-3 text-center text-zinc-400">${t.box1FavRuns > 0 ? t.box1FavRate.toFixed(1) + '%' : '-'}</td>
+                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1ShortFavWins}</td>
+                        <td class="px-2 py-3 text-center text-zinc-400">${t.box1ShortFavRuns > 0 ? t.box1ShortFavRate.toFixed(1) + '%' : '-'}</td>
+                    </tr>
+                `).join('');
+            };
+            renderDistanceTable();
 
         }
 
@@ -1016,7 +1109,8 @@
                                 ${race.meeting_name} ${race.race_number}
                             </h2>
                         </div>
-                        <div class="text-right pl-1 flex-shrink-0 flex items-center">
+                        <div class="text-right pl-1 flex-shrink-0 flex items-center gap-2">
+                             ${race.distance_meters ? `<span class="text-[10px] font-mono text-zinc-400 bg-zinc-800 px-1 rounded">${race.distance_meters}m</span>` : ''}
                             <div class="text-xs font-bold whitespace-nowrap opacity-75">
                                 ${formatDateLabel(race.race_time)}
                             </div>

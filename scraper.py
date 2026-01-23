@@ -17,17 +17,44 @@ from supabase import create_client, Client
 # AEST timezone (UTC+11 during daylight saving)
 AEST = timezone(timedelta(hours=11))
 
+
 # Configuration
 FORM_GUIDE_URL = "https://www.thegreyhoundrecorder.com.au/form-guides/"
+
+# Initialize Supabase client
+# Fallback for dev/local scripts if env vars missing
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# Initialize Supabase client
-if not SUPABASE_URL or not SUPABASE_KEY:
-    print("ERROR: SUPABASE_URL and SUPABASE_KEY environment variables must be set")
-    sys.exit(1)
+if not SUPABASE_URL:
+    # Try to find from hardcoded (for local agent execution match)
+    pass 
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Optional[Client] = None
+
+def get_supabase():
+    global supabase
+    if supabase:
+        return supabase
+        
+    url = os.environ.get("SUPABASE_URL", 'https://yvnkyakuamvahtiwbneq.supabase.co')
+    key = os.environ.get("SUPABASE_KEY", 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2bmt5YWt1YW12YWh0aXdibmVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5Mzg4MTQsImV4cCI6MjA4NDUxNDgxNH0.-v9LyyRgX2tj9EFCImHo44XxSQcZ4_GmQZw-q7ZTX5I')
+    
+    if not url or not key:
+        print("ERROR: SUPABASE_URL and SUPABASE_KEY environment variables must be set")
+        sys.exit(1)
+        
+    supabase = create_client(url, key)
+    return supabase
+
+# Initialize on module load ONLY if we are running as main, 
+# OR just let it be lazy? 
+# Existing code expects `supabase` variable to exist.
+# We will initialize it immediately but with fallback if missing, 
+# OR we update usage sites. 
+# Updating usage sites is safer.
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY) if (SUPABASE_URL and SUPABASE_KEY) else None
+
 
 
 def fetch_page(url: str) -> Optional[BeautifulSoup]:
@@ -511,6 +538,13 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
                 continue
             
             race_number = int(race_match.group(1))
+
+            # Extract distance (Safe Regex: 200m - 999m)
+            # Avoids matching prize money (e.g. 15324)
+            distance_meters = None
+            dist_match = re.search(r'\b([2-9]\d{2})m\b', header_text)
+            if dist_match:
+                distance_meters = int(dist_match.group(1))
             
             # Find all runners by looking for links in the DESKTOP TABLE ONLY
             # (The page has both mobile and desktop views, we need to avoid double-counting)
@@ -545,13 +579,14 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
                 'meeting_url': meeting_url,  # Store URL for later results scraping
                 'race_number': race_number,
                 'race_time': race_date,  # Simple date string YYYY-MM-DD
+                'distance_meters': distance_meters,
                 'status': 'upcoming',
                 'active_runner_count': active_count,
                 'runners': runners
             }
             
             races.append(race_data)
-            print(f"Scraped: {meeting_name} R{race_number} - {active_count} active runners")
+            print(f"Scraped: {meeting_name} R{race_number} ({distance_meters}m) - {active_count} active runners")
             
         except Exception as e:
             print(f"Error parsing race in {meeting_name}: {e}")
@@ -622,6 +657,7 @@ def upsert_race_data(race_data: Dict) -> None:
             'meeting_url': race_data['meeting_url'],
             'race_number': race_data['race_number'],
             'race_time': race_data['race_time'],
+            'distance_meters': race_data.get('distance_meters'),
             'status': race_data['status'],
             'active_runner_count': race_data['active_runner_count']
         }
