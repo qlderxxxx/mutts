@@ -698,8 +698,8 @@ def update_race_results(race_results: Dict):
                 }).eq('id', runner_id).execute()
         
         # Calculate "Top 2 in Top 2?"
-        # Get top 2 by SP (lowest odds)
-        sorted_by_sp = sorted([r for r in results if r['starting_price'] is not None], key=lambda x: x['starting_price'])
+        # Get top 2 by SP (lowest odds) - MUST be strictly positive (exclude $0.00 SPs)
+        sorted_by_sp = sorted([r for r in results if r['starting_price'] is not None and r['starting_price'] > 0], key=lambda x: x['starting_price'])
         if len(sorted_by_sp) >= 2:
             top_2_favorites = {sorted_by_sp[0]['box_number'], sorted_by_sp[1]['box_number']}
             

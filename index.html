@@ -179,6 +179,10 @@
                     class="px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
                     History
                 </button>
+                <button id="btnStats" onclick="setView('stats')"
+                    class="px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
+                    Stats
+                </button>
             </div>
 
             <!-- Date Filter (only visible in Upcoming view) -->
@@ -310,6 +314,125 @@
         <!-- Race cards will be inserted here -->
         </div>
 
+        <!-- Stats View -->
+        <div id="statsView" class="hidden space-y-8">
+            <!-- 1. General Favourites Stats -->
+            <section>
+                <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                    <span>🏆</span> Favourites Strike Rate
+                </h3>
+                <div class="overflow-x-auto rounded-lg border border-zinc-800">
+                    <table class="w-full text-sm text-left text-zinc-400">
+                        <thead class="text-xs text-zinc-200 uppercase bg-zinc-900/50">
+                            <tr>
+                                <th class="px-4 py-3">Field Size</th>
+                                <th class="px-4 py-3 text-center">Races</th>
+                                <th class="px-4 py-3 text-center">Fav Wins</th>
+                                <th class="px-4 py-3 text-right">Strike Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statsFavGeneral" class="bg-zinc-900/20 divide-y divide-zinc-800/50">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 2. Short Priced Favourites (< $2.00) -->
+            <section>
+                <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                    <span>🔥</span> Short Priced Favourites (< $2.00) </h3>
+                        <div class="overflow-x-auto rounded-lg border border-zinc-800">
+                            <table class="w-full text-sm text-left text-zinc-400">
+                                <thead class="text-xs text-zinc-200 uppercase bg-zinc-900/50">
+                                    <tr>
+                                        <th class="px-4 py-3">Field Size</th>
+                                        <th class="px-4 py-3 text-center">Races</th>
+                                        <th class="px-4 py-3 text-center">Short Fav Wins</th>
+                                        <th class="px-4 py-3 text-right">Strike Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="statsFavShort" class="bg-zinc-900/20 divide-y divide-zinc-800/50">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+            </section>
+
+            <!-- 3. Favourites by Box Number -->
+            <section>
+                <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                    <span>📦</span> Favourites by Box
+                </h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- All Favs -->
+                    <div>
+                        <h4 class="text-sm font-bold text-zinc-400 mb-2 uppercase tracking-wide">All Favourites</h4>
+                        <div class="overflow-x-auto rounded-lg border border-zinc-800">
+                            <table class="w-full text-xs text-center text-zinc-400">
+                                <thead class="text-zinc-200 bg-zinc-900/50 uppercase">
+                                    <tr>
+                                        <th class="px-2 py-2 text-left">Box</th>
+                                        <th class="px-2 py-2">4 Runners</th>
+                                        <th class="px-2 py-2">5 Runners</th>
+                                        <th class="px-2 py-2">6 Runners</th>
+                                        <th class="px-2 py-2">7 Runners</th>
+                                        <th class="px-2 py-2">8 Runners</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="statsBoxAll" class="bg-zinc-900/20 divide-y divide-zinc-800/50"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Short Favs -->
+                    <div>
+                        <h4 class="text-sm font-bold text-zinc-400 mb-2 uppercase tracking-wide">Short Priced (<
+                                $2.00)</h4>
+                                <div class="overflow-x-auto rounded-lg border border-zinc-800">
+                                    <table class="w-full text-xs text-center text-zinc-400">
+                                        <thead class="text-zinc-200 bg-zinc-900/50 uppercase">
+                                            <tr>
+                                                <th class="px-2 py-2 text-left">Box</th>
+                                                <th class="px-2 py-2">4 Runners</th>
+                                                <th class="px-2 py-2">5 Runners</th>
+                                                <th class="px-2 py-2">6 Runners</th>
+                                                <th class="px-2 py-2">7 Runners</th>
+                                                <th class="px-2 py-2">8 Runners</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="statsBoxShort" class="bg-zinc-900/20 divide-y divide-zinc-800/50">
+                                        </tbody>
+                                    </table>
+                                </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Track Stats -->
+            <section>
+                <h3 class="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                    <span>📍</span> Track Performance
+                </h3>
+                <div class="overflow-x-auto rounded-lg border border-zinc-800">
+                    <table class="w-full text-sm text-left text-zinc-400">
+                        <thead class="text-xs text-zinc-200 uppercase bg-zinc-900/50">
+                            <tr>
+                                <th class="px-4 py-3">Track</th>
+                                <th class="px-4 py-3 text-center">Races</th>
+                                <th class="px-4 py-3 text-center">Fav Wins</th>
+                                <th class="px-4 py-3 text-center">Fav SR%</th>
+                                <th class="px-4 py-3 text-center">Short Fav Wins</th>
+                                <th class="px-4 py-3 text-center">Short Fav SR%</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statsTracks" class="bg-zinc-900/20 divide-y divide-zinc-800/50">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
         <!-- Last Updated -->
         <div class="text-center text-zinc-600 text-sm mt-8">
             Last updated: <span id="lastUpdated">-</span>
@@ -361,36 +484,228 @@
         let currentDateFilter = 'all'; // 'all', 'today', or 'tomorrow'
 
         // Set View mode
+        // Set View mode
         function setView(mode) {
             currentView = mode;
             // Update buttons
             const btnUpcoming = document.getElementById('btnUpcoming');
             const btnHistory = document.getElementById('btnHistory');
+            const btnStats = document.getElementById('btnStats');
+
             const dateFilter = document.getElementById('dateFilter');
             const statsUpcoming = document.getElementById('statsUpcoming');
             const statsHistory = document.getElementById('statsHistory');
 
-            if (btnUpcoming && btnHistory) {
+            const racesContainer = document.getElementById('racesContainer');
+            const statsView = document.getElementById('statsView');
+
+            // Reset all buttons
+            const activeClass = "px-4 py-1.5 rounded-full text-sm font-bold bg-white text-black transition";
+            const inactiveClass = "px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition";
+
+            if (btnUpcoming) btnUpcoming.className = (mode === 'upcoming') ? activeClass : inactiveClass;
+            if (btnHistory) btnHistory.className = (mode === 'history') ? activeClass : inactiveClass;
+            if (btnStats) btnStats.className = (mode === 'stats') ? activeClass : inactiveClass;
+
+            // Container Visibility
+            if (mode === 'stats') {
+                if (racesContainer) racesContainer.classList.add('hidden');
+                if (dateFilter) dateFilter.style.display = 'none';
+                if (statsUpcoming) statsUpcoming.classList.add('hidden');
+                if (statsHistory) statsHistory.classList.add('hidden');
+                if (statsView) statsView.classList.remove('hidden');
+
+                renderStats();
+            } else {
+                if (statsView) statsView.classList.add('hidden');
+                if (racesContainer) racesContainer.classList.remove('hidden');
+
                 if (mode === 'upcoming') {
-                    btnUpcoming.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-white text-black transition";
-                    btnHistory.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition";
-                    // Show date filter for upcoming view
                     if (dateFilter) dateFilter.style.display = 'flex';
-                    // Show upcoming stats, hide history stats
                     if (statsUpcoming) statsUpcoming.classList.remove('hidden');
                     if (statsHistory) statsHistory.classList.add('hidden');
+                    document.getElementById('noRacesState').classList.add('hidden');
                 } else {
-                    btnUpcoming.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition";
-                    btnHistory.className = "px-4 py-1.5 rounded-full text-sm font-bold bg-white text-black transition";
-                    // Hide date filter for history view
                     if (dateFilter) dateFilter.style.display = 'none';
-                    // Show history stats, hide upcoming stats
                     if (statsUpcoming) statsUpcoming.classList.add('hidden');
                     if (statsHistory) statsHistory.classList.remove('hidden');
                 }
+
+                if (typeof renderRaces === 'function') {
+                    renderRaces();
+                }
             }
-            if (typeof renderRaces === 'function') {
-                renderRaces();
+        }
+
+        // Render Stats
+        function renderStats() {
+            // 1. Filter for Resulted Races with valid SPs
+            // Matches logic in renderRaces history calculation: resulted or top_2 calculated
+            const resultedRaces = cachedRaces.filter(race =>
+                race.status === 'resulted' || race.top_2_in_top_2 !== null
+            );
+
+            // Data Structures
+            const fieldSizes = [4, 5, 6, 7, 8];
+            const stats = {
+                general: {}, // By Field Size
+                short: {},   // By Field Size (< $2.00)
+                boxGeneral: {}, // By Box (1-8) -> Field Size
+                boxShort: {},   // By Box (1-8) -> Field Size
+                tracks: {}      // By Track Name
+            };
+
+            // Initialize Grid structures
+            fieldSizes.forEach(size => {
+                stats.general[size] = { races: 0, wins: 0 };
+                stats.short[size] = { races: 0, wins: 0 };
+            });
+
+            for (let b = 1; b <= 8; b++) {
+                stats.boxGeneral[b] = {};
+                stats.boxShort[b] = {};
+                fieldSizes.forEach(size => {
+                    stats.boxGeneral[b][size] = { runs: 0, wins: 0 };
+                    stats.boxShort[b][size] = { runs: 0, wins: 0 };
+                });
+            }
+
+            // Process Races
+            resultedRaces.forEach(race => {
+                const runnerCount = race.active_runner_count;
+                if (!fieldSizes.includes(runnerCount)) return;
+
+                const runners = race.runners || [];
+                // Filter valid runners with SP
+                const validRunners = runners.filter(r => r.starting_price !== null && r.starting_price > 0 && !r.is_scratched);
+                if (validRunners.length === 0) return;
+
+                // Find Min SP (Favourites)
+                const minSP = Math.min(...validRunners.map(r => r.starting_price));
+                const favourites = validRunners.filter(r => r.starting_price === minSP);
+                const isShortPriced = minSP < 2.00;
+
+                // Track Stats Init
+                if (!stats.tracks[race.meeting_name]) {
+                    stats.tracks[race.meeting_name] = {
+                        races: 0, favWins: 0, shortWins: 0, shortRaces: 0
+                    };
+                }
+                stats.tracks[race.meeting_name].races++;
+                if (isShortPriced) stats.tracks[race.meeting_name].shortRaces++;
+
+                // General Stats
+                stats.general[runnerCount].races++;
+                if (isShortPriced) stats.short[runnerCount].races++;
+
+                // Check Win
+                let favWon = false;
+                favourites.forEach(fav => {
+                    // Update Box Stats (Runs)
+                    if (stats.boxGeneral[fav.box_number]) {
+                        stats.boxGeneral[fav.box_number][runnerCount].runs++;
+                        if (isShortPriced) stats.boxShort[fav.box_number][runnerCount].runs++;
+                    }
+
+                    if (fav.finishing_position === 1) {
+                        favWon = true;
+                        // Update Box Stats (Wins)
+                        // Note: Only count win once per box even if joint favs in same box (impossible but logic safe)
+                        // Actually joint favs are usually different boxes.
+                        if (stats.boxGeneral[fav.box_number]) {
+                            stats.boxGeneral[fav.box_number][runnerCount].wins++;
+                            if (isShortPriced) stats.boxShort[fav.box_number][runnerCount].wins++;
+                        }
+                    }
+                });
+
+                if (favWon) {
+                    stats.general[runnerCount].wins++;
+                    stats.tracks[race.meeting_name].favWins++;
+                    if (isShortPriced) {
+                        stats.short[runnerCount].wins++;
+                        stats.tracks[race.meeting_name].shortWins++;
+                    }
+                }
+            });
+
+            // --- HTML Generation Helpers ---
+            const calcPct = (wins, total) => total > 0 ? ((wins / total) * 100).toFixed(1) + '%' : '-';
+            const rateClass = (wins, total) => {
+                if (total === 0) return 'text-zinc-600';
+                const pct = (wins / total) * 100;
+                if (pct >= 50) return 'text-green-400 font-bold';
+                if (pct >= 40) return 'text-green-200';
+                if (pct >= 30) return 'text-zinc-300';
+                return 'text-zinc-500';
+            };
+
+            // 1. General & Short Tables
+            const renderTableRows = (dataObj, targetId) => {
+                const tbody = document.getElementById(targetId);
+                if (!tbody) return;
+                let html = '';
+                fieldSizes.forEach(size => {
+                    const d = dataObj[size];
+                    html += `
+                        <tr class="hover:bg-white/5 transition">
+                            <td class="px-4 py-3 font-medium text-white">${size} Runners</td>
+                            <td class="px-4 py-3 text-center text-zinc-400">${d.races}</td>
+                            <td class="px-4 py-3 text-center text-zinc-300">${d.wins}</td>
+                            <td class="px-4 py-3 text-right ${rateClass(d.wins, d.races)}">${calcPct(d.wins, d.races)}</td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html;
+            };
+            renderTableRows(stats.general, 'statsFavGeneral');
+            renderTableRows(stats.short, 'statsFavShort');
+
+            // 2. Box Matrix
+            const renderBoxMatrix = (dataObj, targetId) => {
+                const tbody = document.getElementById(targetId);
+                if (!tbody) return;
+                let html = '';
+                for (let b = 1; b <= 8; b++) {
+                    let rowHtml = `<tr><td class="px-2 py-2 font-bold box-${b} text-black w-8 text-center rounded-sm">${b}</td>`;
+                    fieldSizes.forEach(size => {
+                        const d = dataObj[b][size];
+                        const pct = d.runs > 0 ? Math.round((d.wins / d.runs) * 100) : 0;
+                        const cellContent = d.runs > 0
+                            ? `<div class="flex flex-col items-center"><span class="text-xs font-bold ${pct >= 40 ? 'text-green-400' : 'text-zinc-300'}">${d.wins}/${d.runs}</span><span class="text-[9px] text-zinc-500">${pct}%</span></div>`
+                            : '<span class="text-zinc-700">-</span>';
+                        rowHtml += `<td class="px-2 py-2 border-l border-zinc-800/50 text-center">${cellContent}</td>`;
+                    });
+                    rowHtml += '</tr>';
+                    html += rowHtml;
+                }
+                tbody.innerHTML = html;
+            };
+            renderBoxMatrix(stats.boxGeneral, 'statsBoxAll');
+            renderBoxMatrix(stats.boxShort, 'statsBoxShort');
+
+            // 3. Track Stats
+            const tracksBody = document.getElementById('statsTracks');
+            if (tracksBody) {
+                const sortedTracks = Object.entries(stats.tracks)
+                    .map(([name, d]) => ({
+                        name,
+                        ...d,
+                        favRate: d.races > 0 ? (d.favWins / d.races) * 100 : 0
+                    }))
+                    .filter(t => t.races >= 1) // Only show tracks with data
+                    .sort((a, b) => b.favRate - a.favRate || b.races - a.races);
+
+                tracksBody.innerHTML = sortedTracks.map(t => `
+                    <tr class="hover:bg-white/5 transition border-b border-zinc-800/30 last:border-0">
+                        <td class="px-4 py-3 font-medium text-white truncate max-w-[150px]">${t.name}</td>
+                        <td class="px-4 py-3 text-center text-zinc-400">${t.races}</td>
+                        <td class="px-4 py-3 text-center text-zinc-300">${t.favWins}</td>
+                        <td class="px-4 py-3 text-center font-bold ${t.favRate >= 40 ? 'text-green-400' : 'text-zinc-500'}">${t.favRate.toFixed(1)}%</td>
+                        <td class="px-4 py-3 text-center text-zinc-400">${t.shortWins}</td>
+                        <td class="px-4 py-3 text-center text-zinc-500">${calcPct(t.shortWins, t.shortRaces)}</td>
+                    </tr>
+                `).join('');
             }
         }
 

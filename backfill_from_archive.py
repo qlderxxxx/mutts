@@ -72,13 +72,24 @@ def get_meeting_urls_for_date(target_date: datetime) -> Dict[str, str]:
                 track_slug = url_parts[-3] if url_parts[-1] == '' else url_parts[-2]
                 meeting_name = track_slug.replace('-', ' ').title()
                 
+                # Validate ID: Must be numeric and logical (e.g. > 240000)
+                # This filters out date-based IDs (e.g. 220126) and generic pages
+                meeting_id = url_parts[-2]
+                
+                if not meeting_id.isdigit():
+                    continue
+                    
+                if int(meeting_id) < 240000:
+                    print(f"  Skipping likely invalid/date ID: {meeting_name} -> {meeting_id}")
+                    continue
+
                 # Build full URL
                 if not href.startswith('http'):
                     href = 'https://www.thegreyhoundrecorder.com.au' + href
                 
                 # Convert results URL back to form guide URL for consistency
                 # /results/angle-park/250176/ -> /form-guides/angle-park/fields/250176/
-                form_guide_url = href.replace('/results/', '/form-guides/').replace(f'/{url_parts[-2]}/', f'/fields/{url_parts[-2]}/')
+                form_guide_url = href.replace('/results/', '/form-guides/').replace(f'/{meeting_id}/', f'/fields/{meeting_id}/')
                 
                 if meeting_name not in meetings:
                     meetings[meeting_name] = form_guide_url
@@ -113,7 +124,7 @@ def backfill_from_archive(days_ago: int = 2):
     
     # Fetch races from database for this date
     try:
-        response = supabase.table('races').select('meeting_name, race_number, status').gte('race_time', target_date_str).lt('race_time', target_date_str + 'T23:59:59').execute()
+        response = supabase.table('races').select('meeting_name, race_number, status, meeting_url').gte('race_time', target_date_str).lt('race_time', target_date_str + 'T23:59:59').execute()
         db_races = response.data
         
         print(f"Found {len(db_races)} races in database for {target_date_str}")
@@ -128,20 +139,56 @@ def backfill_from_archive(days_ago: int = 2):
         
         # Match meetings and scrape results
         all_results = []
-        for meeting_name, meeting_url in real_meeting_urls.items():
-            if meeting_name in db_meetings:
+        
+        # Merge web-found meetings and DB-found meetings
+        # Web found (real_meeting_urls) takes precedence if VALID
+        
+        # Check DB races for valid meeting URLs first
+        db_urls = {}
+        for race in db_races:
+            m_name = race['meeting_name']
+            m_url = race.get('meeting_url')
+            # Extract ID from DB URL if present
+            if m_url and '/form-guides/' in m_url:
+                try:
+                    # Simple check for ID validity
+                    # .../fields/250176/
+                    parts = m_url.strip('/').split('/')
+                    if parts[-1].isdigit() and int(parts[-1]) > 240000:
+                        db_urls[m_name] = m_url
+                except:
+                    pass
+
+        # Combined list of meeting names to check
+        all_meeting_names = set(db_meetings.keys())
+        
+        for meeting_name in all_meeting_names:
+            # Determine which URL to use
+            scrape_url = None
+            source = "None"
+            
+            if meeting_name in real_meeting_urls:
+                scrape_url = real_meeting_urls[meeting_name]
+                source = "Web Archive"
+            elif meeting_name in db_urls:
+                scrape_url = db_urls[meeting_name]
+                source = "DB Record"
+            
+            if scrape_url:
                 races_count = len(db_meetings[meeting_name])
                 resulted_count = sum(1 for r in db_meetings[meeting_name] if r.get('status') == 'resulted')
                 
-                print(f"\n[{meeting_name}] {races_count} races in DB, {resulted_count} already resulted")
+                print(f"\n[{meeting_name}] {races_count} races (Source: {source}), {resulted_count} resulted")
                 
                 if resulted_count < races_count:
-                    print(f"  Scraping results from {meeting_url}...")
-                    results = scrape_meeting_results(meeting_url, meeting_name)
+                    print(f"  Scraping results from {scrape_url}...")
+                    results = scrape_meeting_results(scrape_url, meeting_name)
                     all_results.extend(results)
                     print(f"  -> Found {len(results)} race results")
                 else:
                     print(f"  All races already have results, skipping")
+            else:
+                print(f"\n[{meeting_name}] No valid URL found in Archive or DB. Skipping.")
         
         # Update database
         if all_results:
