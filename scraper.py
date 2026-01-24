@@ -540,9 +540,11 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
             race_number = int(race_match.group(1))
 
             # Extract distance (Safe Regex: 200m - 999m)
-            # Avoids matching prize money (e.g. 15324)
+            # Try multiple sources (header matching often fails for upcoming events)
+            full_text = race_event.get_text(separator=' ', strip=True)
+            
             distance_meters = None
-            dist_match = re.search(r'\b([2-9]\d{2})m\b', header_text)
+            dist_match = re.search(r'\b([2-9]\d{2})m\b', full_text)
             if dist_match:
                 distance_meters = int(dist_match.group(1))
             
