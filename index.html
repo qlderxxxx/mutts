@@ -582,8 +582,7 @@
                 short: {},   // By Field Size (< $2.00)
                 boxGeneral: {}, // By Box (1-8) -> Field Size
                 boxShort: {},   // By Box (1-8) -> Field Size
-                tracks: {},      // By Track Name
-                distances: {}    // By Distance
+                tracks: {}      // By Track Name
             };
 
             // Initialize Grid structures
@@ -852,70 +851,7 @@
             };
             renderTrackTable();
 
-            // 4. Distance Stats
-            const renderDistanceTable = () => {
-                const tbody = document.getElementById('statsDistances');
-                if (!tbody) return;
-
-                const sortedDistances = Object.entries(stats.distances)
-                    .map(([name, d]) => ({
-                        name,
-                        ...d,
-                        favRate: d.races > 0 ? (d.favWins / d.races) * 100 : 0,
-                        shortFavRate: d.shortRaces > 0 ? (d.shortWins / d.shortRaces) * 100 : 0,
-                        top2in2Rate: d.races > 0 ? (d.top2in2 / d.races) * 100 : 0,
-                        top2in2Rate4: d.races4 > 0 ? (d.top2in2_4 / d.races4) * 100 : 0,
-                        box1FavRate: d.box1FavRuns > 0 ? (d.box1FavWins / d.box1FavRuns) * 100 : 0,
-                        box1ShortFavRate: d.box1ShortFavRuns > 0 ? (d.box1ShortFavWins / d.box1ShortFavRuns) * 100 : 0
-                    }))
-                    .filter(t => t.races >= 1)
-                    .sort((a, b) => a.rawDist - b.rawDist); // Always sort by distance length
-
-                // Simple headers for Distance (no sort needed usually, but could add)
-                const table = document.getElementById('statsDistances').closest('table');
-                const thead = table ? table.querySelector('thead tr') : null;
-                if (thead) {
-                    // Reuse similar headers
-                    thead.innerHTML = `
-                         <th class="px-2 py-3 text-center">Distance</th>
-                         <th class="px-2 py-3 text-center">Races</th>
-                         <th class="px-2 py-3 text-center">Fav Wins</th>
-                         <th class="px-2 py-3 text-center">Fav SR%</th>
-                         <th class="px-2 py-3 text-center">Short Wins</th>
-                         <th class="px-2 py-3 text-center">Short SR%</th>
-                         <th class="px-2 py-3 text-center">T2inT2 %</th>
-                         <th class="px-2 py-3 text-center">4-Run Count</th>
-                         <th class="px-2 py-3 text-center">Top2in2 (4)</th>
-                         <th class="px-2 py-3 text-center">B1 Fav Wins</th>
-                         <th class="px-2 py-3 text-center">B1 Fav %</th>
-                         <th class="px-2 py-3 text-center">B1 Short Wins</th>
-                         <th class="px-2 py-3 text-center">B1 Short %</th>
-                     `;
-                }
-
-                tbody.innerHTML = sortedDistances.map(t => `
-                    <tr class="hover:bg-white/5 transition border-b border-zinc-800/30 last:border-0">
-                        <td class="px-2 py-3 font-medium text-white text-center">${t.name}</td>
-                        <td class="px-2 py-3 text-center text-zinc-300">${t.races}</td>
-                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.favWins}</td>
-                        <td class="px-2 py-3 text-center font-bold ${t.favRate >= 40 ? 'text-green-400' : 'text-zinc-400'}">${t.favRate.toFixed(1)}%</td>
-                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.shortWins}</td>
-                        <td class="px-2 py-3 text-center text-zinc-400">${t.shortRaces > 0 ? t.shortFavRate.toFixed(1) + '%' : '-'}</td>
-                        <td class="px-2 py-3 text-center text-zinc-300">${t.top2in2Rate.toFixed(1)}%</td>
-                        <td class="px-2 py-3 text-center text-zinc-400">${t.races4}</td>
-                        <td class="px-2 py-3 text-center text-zinc-300">${t.races4 > 0 ? t.top2in2Rate4.toFixed(1) + '%' : '-'}</td>
-                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1FavWins}</td>
-                        <td class="px-2 py-3 text-center text-zinc-400">${t.box1FavRuns > 0 ? t.box1FavRate.toFixed(1) + '%' : '-'}</td>
-                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1ShortFavWins}</td>
-                        <td class="px-2 py-3 text-center text-zinc-400">${t.box1ShortFavRuns > 0 ? t.box1ShortFavRate.toFixed(1) + '%' : '-'}</td>
-                    </tr>
-                `).join('');
-            };
-            renderDistanceTable();
-
         }
-
-        // Set Date Filter
         function setDateFilter(filter) {
             currentDateFilter = filter;
             // Update buttons
