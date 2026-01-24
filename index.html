@@ -1067,7 +1067,7 @@
                 const shortFavs = activeRunnersArr.filter(r => r.sportsbet_odds > 0 && r.sportsbet_odds < 3.00);
                 if (shortFavs.length === 2) {
                     const others = activeRunnersArr.filter(r => r.sportsbet_odds > 0 && r.sportsbet_odds >= 3.00);
-                    const othersAreLong = others.every(r => r.sportsbet_odds >= 10.00);
+                    const othersAreLong = others.every(r => r.sportsbet_odds >= 8.00);
                     if (others.length > 0 && othersAreLong) {
                         return true;
                     }
@@ -1268,7 +1268,7 @@
 
                     if (shortFavs.length === 2) {
                         const others = activeRunnersArr.filter(r => r.sportsbet_odds > 0 && r.sportsbet_odds >= 3.00);
-                        const othersAreLong = others.every(r => r.sportsbet_odds >= 10.00);
+                        const othersAreLong = others.every(r => r.sportsbet_odds >= 8.00);
 
                         // Also ensure we actually HAVE others to beat
                         if (others.length > 0 && othersAreLong) {
