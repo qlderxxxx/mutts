@@ -637,8 +637,8 @@
 
                     // Track Stats: Box 1 Favs
                     if (fav.box_number === 1) {
-                        stats.tracks[trackKey].box1FavRuns++;
-                        if (isShortPriced) stats.tracks[trackKey].box1ShortFavRuns++;
+                        stats.tracks[race.meeting_name].box1FavRuns++;
+                        if (isShortPriced) stats.tracks[race.meeting_name].box1ShortFavRuns++;
                     }
 
                     if (fav.finishing_position === 1) {
@@ -651,18 +651,18 @@
 
                         // Track Stats: Box 1 Fav Wins
                         if (fav.box_number === 1) {
-                            stats.tracks[trackKey].box1FavWins++;
-                            if (isShortPriced) stats.tracks[trackKey].box1ShortFavWins++;
+                            stats.tracks[race.meeting_name].box1FavWins++;
+                            if (isShortPriced) stats.tracks[race.meeting_name].box1ShortFavWins++;
                         }
                     }
                 });
 
                 if (favWon) {
                     stats.general[runnerCount].wins++;
-                    stats.tracks[trackKey].favWins++;
+                    stats.tracks[race.meeting_name].favWins++;
                     if (isShortPriced) {
                         stats.short[runnerCount].wins++;
-                        stats.tracks[trackKey].shortWins++;
+                        stats.tracks[race.meeting_name].shortWins++;
                     }
                 }
             });
