@@ -353,6 +353,8 @@
                                     <th class="px-4 py-3 text-center">Races</th>
                                     <th class="px-4 py-3 text-center">Fav Wins</th>
                                     <th class="px-4 py-3 text-right">Strike Rate</th>
+                                    <th class="px-4 py-3 text-right">P&L ($)</th>
+                                    <th class="px-4 py-3 text-right">ROI</th>
                                 </tr>
                             </thead>
                             <tbody id="statsFavGeneral" class="bg-zinc-900/20 divide-y divide-zinc-800/50">
@@ -374,6 +376,8 @@
                                             <th class="px-4 py-3 text-center">Races</th>
                                             <th class="px-4 py-3 text-center">Short Fav Wins</th>
                                             <th class="px-4 py-3 text-right">Strike Rate</th>
+                                            <th class="px-4 py-3 text-right">P&L ($)</th>
+                                            <th class="px-4 py-3 text-right">ROI</th>
                                         </tr>
                                     </thead>
                                     <tbody id="statsFavShort" class="bg-zinc-900/20 divide-y divide-zinc-800/50">
@@ -404,6 +408,8 @@
                                         <th class="px-2 py-2">7 Runners</th>
                                         <th class="px-2 py-2">8 Runners</th>
                                         <th class="px-2 py-2 text-white font-bold border-l border-zinc-700">All</th>
+                                        <th class="px-2 py-2 text-right border-l border-zinc-700">P&L</th>
+                                        <th class="px-2 py-2 text-right">ROI</th>
                                     </tr>
                                 </thead>
                                 <tbody id="statsBoxAll" class="bg-zinc-900/20 divide-y divide-zinc-800/50"></tbody>
@@ -426,6 +432,8 @@
                                                 <th class="px-2 py-2">8 Runners</th>
                                                 <th class="px-2 py-2 text-white font-bold border-l border-zinc-700">All
                                                 </th>
+                                                <th class="px-2 py-2 text-right border-l border-zinc-700">P&L</th>
+                                                <th class="px-2 py-2 text-right">ROI</th>
                                             </tr>
                                         </thead>
                                         <tbody id="statsBoxShort" class="bg-zinc-900/20 divide-y divide-zinc-800/50">
@@ -606,16 +614,16 @@
 
             // Initialize Grid structures
             fieldSizes.forEach(size => {
-                stats.general[size] = { races: 0, wins: 0 };
-                stats.short[size] = { races: 0, wins: 0 };
+                stats.general[size] = { races: 0, wins: 0, profit: 0, bets: 0 };
+                stats.short[size] = { races: 0, wins: 0, profit: 0, bets: 0 };
             });
 
             for (let b = 1; b <= 8; b++) {
                 stats.boxGeneral[b] = {};
                 stats.boxShort[b] = {};
                 fieldSizes.forEach(size => {
-                    stats.boxGeneral[b][size] = { runs: 0, wins: 0 };
-                    stats.boxShort[b][size] = { runs: 0, wins: 0 };
+                    stats.boxGeneral[b][size] = { runs: 0, wins: 0, profit: 0 };
+                    stats.boxShort[b][size] = { runs: 0, wins: 0, profit: 0 };
                 });
             }
 
@@ -638,9 +646,11 @@
                 if (!stats.tracks[race.meeting_name]) {
                     stats.tracks[race.meeting_name] = {
                         races: 0, favWins: 0, shortWins: 0, shortRaces: 0,
+                        favBets: 0, shortBets: 0,
+                        favProfit: 0, shortProfit: 0,
                         top2in2: 0, races4: 0, top2in2_4: 0,
-                        box1FavRuns: 0, box1FavWins: 0,
-                        box1ShortFavRuns: 0, box1ShortFavWins: 0
+                        box1FavRuns: 0, box1FavWins: 0, box1FavProfit: 0,
+                        box1ShortFavRuns: 0, box1ShortFavWins: 0, box1ShortFavProfit: 0
                     };
                 }
                 stats.tracks[race.meeting_name].races++;
@@ -651,9 +661,11 @@
                 if (!stats.distances[distKey]) {
                     stats.distances[distKey] = {
                         races: 0, favWins: 0, shortWins: 0, shortRaces: 0,
+                        favBets: 0, shortBets: 0,
+                        favProfit: 0, shortProfit: 0,
                         top2in2: 0, races4: 0, top2in2_4: 0,
-                        box1FavRuns: 0, box1FavWins: 0,
-                        box1ShortFavRuns: 0, box1ShortFavWins: 0,
+                        box1FavRuns: 0, box1FavWins: 0, box1FavProfit: 0,
+                        box1ShortFavRuns: 0, box1ShortFavWins: 0, box1ShortFavProfit: 0,
                         rawDist: race.distance_meters || 9999
                     };
                 }
@@ -682,25 +694,59 @@
 
                 // Check Win
                 let favWon = false;
+
+                // Note: There can be joint favourites. We split stake if needed? 
+                // Standard SP logic: If joint favs, user is on "The Favourite". 
+                // Usually for stats purposes, if multiple favs, we count all as runs? Or 1 run?
+                // Simplification for MVP: If multiple favs, we treat each as a separate "Bet" on a favourite?
+                // Yes, standard logic: If you back "The Favourite" and there are 2 equal favs, you back both.
+                // Or you back the one with better form.
+                // Let's assume we back ALL joint favourites for $1 each.
+
                 favourites.forEach(fav => {
-                    // Update Box Stats (Runs)
+                    let stake = 1;
+                    let runProfit = -1 * stake;
+
+                    if (fav.finishing_position === 1) {
+                        // Win!
+                        // Profit = (SP * Stake) - Stake
+                        runProfit = (fav.starting_price * stake) - stake;
+                    }
+
+                    // Update Box Stats (Runs & Profit)
                     if (stats.boxGeneral[fav.box_number]) {
                         stats.boxGeneral[fav.box_number][runnerCount].runs++;
-                        if (isShortPriced) stats.boxShort[fav.box_number][runnerCount].runs++;
+                        stats.boxGeneral[fav.box_number][runnerCount].profit += runProfit;
+
+                        if (isShortPriced) {
+                            stats.boxShort[fav.box_number][runnerCount].runs++;
+                            stats.boxShort[fav.box_number][runnerCount].profit += runProfit;
+                        }
                     }
 
                     // Track & Distance Stats: Box 1 Favs
                     if (fav.box_number === 1) {
                         stats.tracks[race.meeting_name].box1FavRuns++;
+                        stats.tracks[race.meeting_name].box1FavProfit += runProfit;
+
                         stats.distances[distKey].box1FavRuns++;
+                        stats.distances[distKey].box1FavProfit += runProfit;
+
                         if (isShortPriced) {
                             stats.tracks[race.meeting_name].box1ShortFavRuns++;
+                            stats.tracks[race.meeting_name].box1ShortFavProfit += runProfit;
+
                             stats.distances[distKey].box1ShortFavRuns++;
+                            stats.distances[distKey].box1ShortFavProfit += runProfit;
                         }
                     }
 
                     if (fav.finishing_position === 1) {
-                        favWon = true;
+                        favWon = true; // Use this for "Races where Fav Won" strike rate?
+                        // Actually our stats.general[fields].wins is usually "Number of Winning Favourites"
+                        // If 2 favs run and 1 wins, is that 1 win 2 runs?
+                        // Standard practice: Strike Rate is Wins / Runs.
+
                         // Update Box Stats (Wins)
                         if (stats.boxGeneral[fav.box_number]) {
                             stats.boxGeneral[fav.box_number][runnerCount].wins++;
@@ -717,9 +763,33 @@
                             }
                         }
                     }
+
+                    // Update General/Short Stats Aggregates
+                    // We treat these as aggregate Performance of "Backing Favourites"
+                    stats.general[runnerCount].profit += runProfit;
+                    if (isShortPriced) stats.short[runnerCount].profit += runProfit;
                 });
 
                 if (favWon) {
+                    // Update Wins Count
+                    // Note: If 2 favs and 1 wins, we have 2 runs, 1 win.
+                    // But in the "Races" column of our table we usually count *Races*.
+                    // The "Strike Rate" column is "Fav Wins / Races" or "Fav Wins / Fav Runs"?
+                    // Current Implementation uses `stats.general[size].races` which counts RACES.
+                    // If we want P&L, we must track 'runs' (bets) separately if we want true ROI.
+                    // But for simplicity in the UI which shows "Races | Wins | SR", we are showing success rate per RACE.
+                    // P&L however must be per STAKE.
+                    // If there are 2 favs, we bet $2.
+                    // So P&L is accurate to the bets.
+                    // For the table display:
+                    // we are showing "Races" (e.g. 500 races)
+                    // "Wins" (e.g. 250 wins)
+                    // "P&L": Sum of all profits.
+                    // "ROI": P&L / (Number of Favourites Backed) ?? Or P&L / Races?
+                    // Standard is ROI = Profit / Turnover.
+                    // We need to track Turnover (total stakes) if we have multiple favs.
+                    // Let's add 'bets' to the stats object to be precise.
+
                     stats.general[runnerCount].wins++;
                     stats.tracks[race.meeting_name].favWins++;
                     stats.distances[distKey].favWins++;
@@ -729,6 +799,16 @@
                         stats.distances[distKey].shortWins++;
                     }
                 }
+
+                // Track Turnover for correct ROI calculation
+                stats.general[runnerCount].bets += favourites.length;
+                if (isShortPriced) stats.short[runnerCount].bets += favourites.length;
+
+                stats.tracks[race.meeting_name].favBets += favourites.length;
+                if (isShortPriced) stats.tracks[race.meeting_name].shortBets += favourites.length;
+
+                stats.distances[distKey].favBets += favourites.length;
+                if (isShortPriced) stats.distances[distKey].shortBets += favourites.length;
             });
 
             // --- HTML Generation Helpers ---
@@ -743,17 +823,41 @@
             };
 
             // 1. General & Short Tables
+            const formatMoney = (val) => {
+                const num = parseFloat(val);
+                if (isNaN(num)) return '-';
+                const sign = num >= 0 ? '+' : '';
+                return `${sign}$${Math.abs(num).toFixed(2)}`;
+            };
+
+            const formatROI = (profit, runs) => {
+                if (runs === 0) return '-';
+                const roi = (profit / runs) * 100;
+                const sign = roi >= 0 ? '+' : '';
+                // Color class
+                let color = 'text-zinc-400';
+                if (roi > 5) color = 'text-green-400 font-bold';
+                else if (roi > 0) color = 'text-green-300';
+                else if (roi < -10) color = 'text-red-400';
+
+                return `<span class="${color}">${sign}${roi.toFixed(1)}%</span>`;
+            };
+
             const renderTableRows = (dataObj, targetId) => {
                 const tbody = document.getElementById(targetId);
                 if (!tbody) return;
                 let html = '';
                 let totalRaces = 0;
                 let totalWins = 0;
+                let totalProfit = 0;
 
                 fieldSizes.forEach(size => {
                     const d = dataObj[size];
                     totalRaces += d.races;
                     totalWins += d.wins;
+                    totalProfit += d.profit;
+
+                    const moneyClass = d.profit >= 0 ? 'text-green-300' : 'text-red-300';
 
                     html += `
                         <tr class="hover:bg-white/5 transition">
@@ -761,17 +865,22 @@
                             <td class="px-4 py-3 text-center text-zinc-400">${d.races}</td>
                             <td class="px-4 py-3 text-center text-zinc-300">${d.wins}</td>
                             <td class="px-4 py-3 text-right ${rateClass(d.wins, d.races)}">${calcPct(d.wins, d.races)}</td>
+                            <td class="px-4 py-3 text-right ${moneyClass} font-mono">${formatMoney(d.profit)}</td>
+                            <td class="px-4 py-3 text-right font-mono">${formatROI(d.profit, d.races)}</td>
                         </tr>
                     `;
                 });
 
                 // Add Total Row
+                const totalMoneyClass = totalProfit >= 0 ? 'text-green-300' : 'text-red-300';
                 html += `
                     <tr class="bg-zinc-800/50 font-bold border-t border-zinc-700">
                         <td class="px-4 py-3 text-white">All Field Sizes</td>
                         <td class="px-4 py-3 text-center text-white">${totalRaces}</td>
                         <td class="px-4 py-3 text-center text-white">${totalWins}</td>
                         <td class="px-4 py-3 text-right ${rateClass(totalWins, totalRaces)}">${calcPct(totalWins, totalRaces)}</td>
+                         <td class="px-4 py-3 text-right ${totalMoneyClass} font-mono">${formatMoney(totalProfit)}</td>
+                        <td class="px-4 py-3 text-right font-mono">${formatROI(totalProfit, totalRaces)}</td>
                     </tr>
                 `;
 
@@ -790,11 +899,13 @@
 
                     let totalRuns = 0;
                     let totalWins = 0;
+                    let totalProfit = 0;
 
                     fieldSizes.forEach(size => {
                         const d = dataObj[b][size];
                         totalRuns += d.runs;
                         totalWins += d.wins;
+                        totalProfit += d.profit;
 
                         const pct = d.runs > 0 ? Math.round((d.wins / d.runs) * 100) : 0;
                         const cellContent = d.runs > 0
@@ -803,12 +914,19 @@
                         rowHtml += `<td class="px-2 py-2 border-l border-zinc-800/50 text-center">${cellContent}</td>`;
                     });
 
-                    // Add Total Column
+                    // Add Total Columns
                     const totalPct = totalRuns > 0 ? Math.round((totalWins / totalRuns) * 100) : 0;
                     const totalContent = totalRuns > 0
                         ? `<div class="flex flex-col items-center"><span class="text-xs font-bold ${totalPct >= 40 ? 'text-green-400' : 'text-zinc-200'}">${totalWins}/${totalRuns}</span><span class="text-[9px] text-zinc-400">${totalPct}%</span></div>`
                         : '<span class="text-zinc-600">-</span>';
                     rowHtml += `<td class="px-2 py-2 border-l border-zinc-700 text-center bg-zinc-800/30">${totalContent}</td>`;
+
+                    // P&L
+                    const plClass = totalProfit >= 0 ? 'text-green-300' : 'text-red-300';
+                    rowHtml += `<td class="px-2 py-2 border-l border-zinc-700 text-right font-mono text-xs ${plClass}">${formatMoney(totalProfit)}</td>`;
+
+                    // ROI
+                    rowHtml += `<td class="px-2 py-2 text-right font-mono text-xs">${formatROI(totalProfit, totalRuns)}</td>`;
 
                     rowHtml += '</tr>';
                     html += rowHtml;
@@ -835,7 +953,11 @@
                         top2in2Rate: d.races > 0 ? (d.top2in2 / d.races) * 100 : 0,
                         top2in2Rate4: d.races4 > 0 ? (d.top2in2_4 / d.races4) * 100 : 0,
                         box1FavRate: d.box1FavRuns > 0 ? (d.box1FavWins / d.box1FavRuns) * 100 : 0,
-                        box1ShortFavRate: d.box1ShortFavRuns > 0 ? (d.box1ShortFavWins / d.box1ShortFavRuns) * 100 : 0
+                        box1ShortFavRate: d.box1ShortFavRuns > 0 ? (d.box1ShortFavWins / d.box1ShortFavRuns) * 100 : 0,
+                        // Add Sortable ROI fields
+                        favROI: d.favBets > 0 ? (d.favProfit / d.favBets) * 100 : -999,
+                        box1FavROI: d.box1FavRuns > 0 ? (d.box1FavProfit / d.box1FavRuns) * 100 : -999,
+                        trackFavROI: d.favBets > 0 ? (d.favProfit / d.favBets) * 100 : -999
                     }))
                     .filter(t => t.races >= 1)
                     .sort((a, b) => {
@@ -872,8 +994,10 @@
                         ${th('Top2in2 (4)', 'top2in2Rate4')}
                         ${th('Box 1 Fav Wins', 'box1FavWins')}
                         ${th('Box 1 Fav %', 'box1FavRate')}
+                        ${th('Box 1 Fav ROI', 'box1FavROI')}
                         ${th('Box 1 Short Wins', 'box1ShortFavWins')}
                         ${th('Box 1 Short %', 'box1ShortFavRate')}
+                        ${th('Track Fav ROI', 'trackFavROI')}
                     `;
                 }
 
@@ -883,15 +1007,23 @@
                         <td class="px-2 py-3 text-center text-zinc-300">${t.races}</td>
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.favWins}</td>
                         <td class="px-2 py-3 text-center font-bold ${t.favRate >= 40 ? 'text-green-400' : 'text-zinc-400'}">${t.favRate.toFixed(1)}%</td>
+                        
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.shortWins}</td>
                         <td class="px-2 py-3 text-center text-zinc-400">${t.shortRaces > 0 ? t.shortFavRate.toFixed(1) + '%' : '-'}</td>
                         <td class="px-2 py-3 text-center text-zinc-300">${t.top2in2Rate.toFixed(1)}%</td>
+                        
                         <td class="px-2 py-3 text-center text-zinc-400">${t.races4}</td>
                         <td class="px-2 py-3 text-center text-zinc-300">${t.races4 > 0 ? t.top2in2Rate4.toFixed(1) + '%' : '-'}</td>
+                        
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1FavWins}</td>
                         <td class="px-2 py-3 text-center text-zinc-400">${t.box1FavRuns > 0 ? t.box1FavRate.toFixed(1) + '%' : '-'}</td>
+                        <td class="px-2 py-3 text-center font-mono text-xs ${t.box1FavProfit >= 0 ? 'text-green-300' : 'text-red-300'}">${formatMoney(t.box1FavProfit)}</td>
+                        
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1ShortFavWins}</td>
                         <td class="px-2 py-3 text-center text-zinc-400">${t.box1ShortFavRuns > 0 ? t.box1ShortFavRate.toFixed(1) + '%' : '-'}</td>
+                        
+                        <!-- ROI for Track Overall (Favs) -->
+                        <td class="px-2 py-3 text-center font-mono text-xs">${formatROI(t.favProfit, t.favBets)}</td>
                     </tr>
                 `).join('');
             };
@@ -914,7 +1046,9 @@
                         top2in2Rate: d.races > 0 ? (d.top2in2 / d.races) * 100 : 0,
                         top2in2Rate4: d.races4 > 0 ? (d.top2in2_4 / d.races4) * 100 : 0,
                         box1FavRate: d.box1FavRuns > 0 ? (d.box1FavWins / d.box1FavRuns) * 100 : 0,
-                        box1ShortFavRate: d.box1ShortFavRuns > 0 ? (d.box1ShortFavWins / d.box1ShortFavRuns) * 100 : 0
+                        box1ShortFavRate: d.box1ShortFavRuns > 0 ? (d.box1ShortFavWins / d.box1ShortFavRuns) * 100 : 0,
+                        favROI: d.favBets > 0 ? (d.favProfit / d.favBets) * 100 : -999,
+                        box1FavROI: d.box1FavRuns > 0 ? (d.box1FavProfit / d.box1FavRuns) * 100 : -999
                     }))
                     .filter(t => t.races >= 1)
                     .sort((a, b) => {
@@ -951,8 +1085,10 @@
                         ${th('Top2in2 (4)', 'top2in2Rate4')}
                         ${th('Box 1 Fav Wins', 'box1FavWins')}
                         ${th('Box 1 Fav %', 'box1FavRate')}
+                        ${th('Box 1 Fav ROI', 'box1FavROI')}
                         ${th('Box 1 Short Wins', 'box1ShortFavWins')}
                         ${th('Box 1 Short %', 'box1ShortFavRate')}
+                        ${th('Dist Fav ROI', 'favROI')}
                     `;
                 }
 
@@ -962,15 +1098,23 @@
                         <td class="px-2 py-3 text-center text-zinc-300">${t.races}</td>
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.favWins}</td>
                         <td class="px-2 py-3 text-center font-bold ${t.favRate >= 40 ? 'text-green-400' : 'text-zinc-400'}">${t.favRate.toFixed(1)}%</td>
+                        
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.shortWins}</td>
                         <td class="px-2 py-3 text-center text-zinc-400">${t.shortRaces > 0 ? t.shortFavRate.toFixed(1) + '%' : '-'}</td>
                         <td class="px-2 py-3 text-center text-zinc-300">${t.top2in2Rate.toFixed(1)}%</td>
+                        
                         <td class="px-2 py-3 text-center text-zinc-400">${t.races4}</td>
                         <td class="px-2 py-3 text-center text-zinc-300">${t.races4 > 0 ? t.top2in2Rate4.toFixed(1) + '%' : '-'}</td>
+                        
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1FavWins}</td>
                         <td class="px-2 py-3 text-center text-zinc-400">${t.box1FavRuns > 0 ? t.box1FavRate.toFixed(1) + '%' : '-'}</td>
+                         <td class="px-2 py-3 text-center font-mono text-xs ${t.box1FavProfit >= 0 ? 'text-green-300' : 'text-red-300'}">${formatMoney(t.box1FavProfit)}</td>
+                        
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1ShortFavWins}</td>
                         <td class="px-2 py-3 text-center text-zinc-400">${t.box1ShortFavRuns > 0 ? t.box1ShortFavRate.toFixed(1) + '%' : '-'}</td>
+                        
+                        <!-- ROI for Dist Overall (Favs) -->
+                        <td class="px-2 py-3 text-center font-mono text-xs">${formatROI(t.favProfit, t.favBets)}</td>
                     </tr>
                 `).join('');
             };
