@@ -1404,21 +1404,30 @@
             // But we filter list to [4, 5, BlueOpps]
             // If we sort by active_runner_count, we get 4, 5, 6/7/8.
             // This satisfies the requirement: "Blue Opps... last on the sorting after 4 runners and 5 runners"
+            // Sort logic: Date > Category (4 > 5 > Top 2 Opp) > Meeting
             const sortedRaces = displayRaces.sort((a, b) => {
-                // Priority 1: Field Size (Smallest first)
-                if (a.active_runner_count !== b.active_runner_count) {
-                    return a.active_runner_count - b.active_runner_count;
-                }
-
-                // Second: Sort by date
+                // Priority 1: Date (Today before Tomorrow)
                 const dateA = new Date(a.race_time).toLocaleDateString('en-CA');
                 const dateB = new Date(b.race_time).toLocaleDateString('en-CA');
                 if (dateA !== dateB) return dateA.localeCompare(dateB);
 
-                // Third: group by meeting name
+                // Priority 2: Category (Colour)
+                // Rank: 4 Runners (1) < 5 Runners (2) < Top 2 Opps (3)
+                // Note: Top 2 Opps are >= 5 runners. 4 Runners are never Blue (based on criteria).
+                const getRank = (r) => {
+                    if (r.active_runner_count === 4) return 1;
+                    if (r.isBlueOpp) return 3;
+                    return 2; // 5 Runners (Non-Blue)
+                };
+
+                const rankA = getRank(a);
+                const rankB = getRank(b);
+                if (rankA !== rankB) return rankA - rankB;
+
+                // Priority 3: Meeting
                 if (a.meeting_name !== b.meeting_name) return a.meeting_name.localeCompare(b.meeting_name);
 
-                // Fourth: race number
+                // Priority 4: Race Number
                 return a.race_number - b.race_number;
             });
 
