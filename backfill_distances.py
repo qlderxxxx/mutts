@@ -85,10 +85,15 @@ def backfill_distances():
                     continue
                 race_num = int(race_match.group(1))
 
-                # Match Distance (Safe Regex)
-                dist_match = re.search(r'\b([2-9]\d{2})m\b', header_text)
-                distance = None
+                # EXTRACT DISTANCE
+                # Try multiple sources
+                full_text = race_event.get_text(separator=' ', strip=True)
                 
+                # Match Distance (Safe Regex) - look for 3 digits followed by 'm'
+                # Use word boundaries to avoid matching big numbers
+                dist_match = re.search(r'\b([2-9]\d{2})m\b', full_text)
+                
+                distance = None
                 if dist_match:
                     distance = int(dist_match.group(1))
                 
