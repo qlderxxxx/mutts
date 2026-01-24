@@ -269,6 +269,15 @@
                     <div class="text-[9px] text-zinc-400 uppercase mt-0.5 tracking-wide">Top 2 in Top 2 Strike Rate
                     </div>
                 </div>
+                <!-- Top 2 Opps -->
+                <div class="bg-blue-900/30 backdrop-blur-lg rounded-lg p-3 border border-blue-800/50 col-span-2">
+                    <div class="text-xs font-bold text-blue-300 uppercase mb-2">Top 2 Opps</div>
+                    <div class="flex items-baseline gap-2">
+                        <div class="text-2xl font-bold text-blue-400" id="statsHistoryBlue">-</div>
+                        <div class="text-sm font-bold text-blue-300/80" id="statsHistoryBluePct">-</div>
+                    </div>
+                    <div class="text-[9px] text-blue-400/60 uppercase mt-0.5 tracking-wide">Strike Rate</div>
+                </div>
             </div>
 
             <!-- Bottom Row: 6, 7, 8, All (Smaller) -->
@@ -1056,18 +1065,42 @@
             }
         }
 
-        // Check for Blue Opportunity
+        // Check for Top 2 Opportunity (Blue)
+        // For Upcoming: Uses Sportsbet Odds
+        // For History: Uses Starting Price (SP) if available
         function isRaceBlueOpp(race) {
-            // 2 favs < $3, rest > $10
+            const isResulted = race.status === 'resulted' || (race.top_2_in_top_2 !== null);
+
+            // 2 favs < $3, rest > $8
             const activeRunnersArr = (race.runners || []).filter(r => !r.is_scratched);
-            const runnersWithOdds = activeRunnersArr.filter(r => r.sportsbet_odds > 0);
+
+            // Choose odds source based on race status
+            const getOdds = (r) => isResulted ? r.starting_price : r.sportsbet_odds;
+
+            const runnersWithOdds = activeRunnersArr.filter(r => {
+                const odds = getOdds(r);
+                return odds !== null && odds > 0;
+            });
+
             const hasEnoughData = runnersWithOdds.length >= 2;
 
             if (hasEnoughData && race.active_runner_count >= 5 && race.active_runner_count <= 8) {
-                const shortFavs = activeRunnersArr.filter(r => r.sportsbet_odds > 0 && r.sportsbet_odds < 3.00);
+                const shortFavs = activeRunnersArr.filter(r => {
+                    const odds = getOdds(r);
+                    return odds > 0 && odds < 3.00;
+                });
+
                 if (shortFavs.length === 2) {
-                    const others = activeRunnersArr.filter(r => r.sportsbet_odds > 0 && r.sportsbet_odds >= 3.00);
-                    const othersAreLong = others.every(r => r.sportsbet_odds >= 8.00);
+                    const others = activeRunnersArr.filter(r => {
+                        const odds = getOdds(r);
+                        return odds > 0 && odds >= 3.00;
+                    });
+                    // Check if others are long shots (>= $8.00)
+                    const othersAreLong = others.every(r => {
+                        const odds = getOdds(r);
+                        return odds >= 8.00;
+                    });
+
                     if (others.length > 0 && othersAreLong) {
                         return true;
                     }
@@ -1368,6 +1401,14 @@
                 const history7 = calculateStrikeRate(7);
                 const history8 = calculateStrikeRate(8);
 
+                // Calculate Blue Opps Strike Rate
+                // Reuse logic but filter by isRaceBlueOpp
+                // Note: calculateStrikeRate above filters by runner count. We need a custom filter.
+                const blueHistoryRaces = historyRaces.filter(r => isRaceBlueOpp(r));
+                const blueTotal = blueHistoryRaces.length;
+                const blueSuccesses = blueHistoryRaces.filter(r => r.top_2_in_top_2 === true).length;
+                const bluePercentage = blueTotal > 0 ? ((blueSuccesses / blueTotal) * 100).toFixed(1) : 0;
+
                 // All fields combined
                 const allTotal = historyRaces.length;
                 const allSuccesses = historyRaces.filter(r => r.top_2_in_top_2 === true).length;
@@ -1388,6 +1429,9 @@
 
                 document.getElementById('statsHistory8').textContent = `${history8.successes}/${history8.total}`;
                 document.getElementById('statsHistory8Pct').textContent = `${history8.percentage}%`;
+
+                document.getElementById('statsHistoryBlue').textContent = `${blueSuccesses}/${blueTotal}`;
+                document.getElementById('statsHistoryBluePct').textContent = `${bluePercentage}%`;
 
                 document.getElementById('statsHistoryAll').textContent = `${allSuccesses}/${allTotal}`;
                 document.getElementById('statsHistoryAllPct').textContent = `${allPercentage}%`;
