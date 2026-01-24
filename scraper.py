@@ -264,11 +264,22 @@ def count_active_runners(runner_elements) -> tuple[int, List[Dict]]:
                 except ValueError:
                     pass
             
+            # Extract Sportsbet fixed odds
+            sportsbet_odds = None
+            sb_el = runner_elem.select_one('[class*="best-odds--sportsbet"]')
+            if sb_el:
+                sb_text = sb_el.get_text(strip=True).replace('$', '').strip()
+                try:
+                    sportsbet_odds = float(sb_text)
+                    print(f"    -> SB Odds for box {box_number}: ${sportsbet_odds}")
+                except ValueError:
+                    pass
+
             runner_data = {
                 'dog_name': dog_name,
                 'box_number': box_number,
                 'ghr_odds': ghr_odds,
-                'sportsbet_odds': None, # data not available in static HTML
+                'sportsbet_odds': sportsbet_odds,
                 'is_scratched': is_scratched,
                 'scratch_reason': scratch_reason if is_scratched else None
             }
