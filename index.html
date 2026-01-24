@@ -213,7 +213,7 @@
     <main class="container mx-auto px-4 py-6">
 
         <!-- Stats Bar -->
-        <div id="statsUpcoming" class="grid grid-cols-2 gap-2 mb-3">
+        <div id="statsUpcoming" class="grid grid-cols-3 gap-2 mb-3">
             <!-- 4 Runners -->
             <div class="bg-zinc-900/50 backdrop-blur-lg rounded-lg p-2 border border-zinc-800">
                 <div class="flex items-center justify-between mb-1">
@@ -234,6 +234,17 @@
                 <div class="flex justify-between text-[10px] text-zinc-500 border-t border-zinc-800 pt-1">
                     <div>Today: <span id="stats5Today" class="text-white font-bold ml-1">-</span></div>
                     <div>Tmr: <span id="stats5Tomorrow" class="text-white font-bold ml-1">-</span></div>
+                </div>
+            </div>
+            <!-- Blue Opps -->
+            <div class="bg-blue-900/20 backdrop-blur-lg rounded-lg p-2 border border-blue-800/50">
+                <div class="flex items-center justify-between mb-1">
+                    <div class="text-[10px] font-bold text-blue-300 uppercase">Blue Opps</div>
+                    <div class="text-xl font-bold text-blue-400" id="statsBlueTotal">-</div>
+                </div>
+                <div class="flex justify-between text-[10px] text-zinc-500 border-t border-blue-800/30 pt-1">
+                    <div>Today: <span id="statsBlueToday" class="text-white font-bold ml-1">-</span></div>
+                    <div>Tmr: <span id="statsBlueTomorrow" class="text-white font-bold ml-1">-</span></div>
                 </div>
             </div>
         </div>
@@ -1045,15 +1056,52 @@
             }
         }
 
+        // Check for Blue Opportunity
+        function isRaceBlueOpp(race) {
+            // 2 favs < $3, rest > $10
+            const activeRunnersArr = (race.runners || []).filter(r => !r.is_scratched);
+            const runnersWithOdds = activeRunnersArr.filter(r => r.sportsbet_odds > 0);
+            const hasEnoughData = runnersWithOdds.length >= 2;
+
+            if (hasEnoughData && race.active_runner_count >= 5 && race.active_runner_count <= 8) {
+                const shortFavs = activeRunnersArr.filter(r => r.sportsbet_odds > 0 && r.sportsbet_odds < 3.00);
+                if (shortFavs.length === 2) {
+                    const others = activeRunnersArr.filter(r => r.sportsbet_odds > 0 && r.sportsbet_odds >= 3.00);
+                    const othersAreLong = others.every(r => r.sportsbet_odds >= 10.00);
+                    if (others.length > 0 && othersAreLong) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Format Money: Remove decimals if whole number (e.g. $61), else 2 decimals ($2.50)
+        function formatMoney(val) {
+            if (val === null || val === undefined) return '-';
+            const num = parseFloat(val);
+            if (isNaN(num)) return '-';
+            if (num % 1 === 0) return `$${num.toFixed(0)}`;
+            return `$${num.toFixed(2)}`;
+        }
+
         // Create race card HTML
-        function createRaceCard(race, runners) {
+        function createRaceCard(race, runners, isBlueOpp = false) {
             const isMicroField = race.active_runner_count === 4;
             const isResulted = race.status === 'resulted' || (race.top_2_in_top_2 !== null);
 
             const cardClass = isMicroField ? 'micro-field-card' : 'opportunity-card';
             // Badge text is now just the runner count
-            const badgeText = isMicroField ? '4 RUNNERS' : '5 RUNNERS';
-            const badgeColor = isMicroField ? 'bg-red-900' : 'bg-orange-900';
+            let badgeText = isMicroField ? '4 RUNNERS' : '5 RUNNERS';
+            let badgeColor = isMicroField ? 'bg-red-900' : 'bg-orange-900';
+
+            // Blue Opportunity Override (High Confidence)
+            let finalCardClass = cardClass;
+            if (isBlueOpp) {
+                finalCardClass = 'bg-blue-900/40 border border-blue-500/30 hover:bg-blue-900/60 hover:border-blue-400/50 hover:shadow-blue-900/20';
+                badgeText = `${race.active_runner_count} • BLUE OPP`;
+                badgeColor = 'bg-blue-600';
+            }
 
             // Sort logic
             let sortedRunners = [...runners];
@@ -1074,16 +1122,16 @@
 
             const runnersHTML = sortedRunners.map(runner => {
                 const scratchedClass = runner.is_scratched ? 'opacity-50 line-through' : '';
-                const ghrOddsText = runner.ghr_odds ? `$${runner.ghr_odds.toFixed(2)}` : '-';
+                const ghrOddsText = formatMoney(runner.ghr_odds);
 
                 // For resulted races, show SP. For upcoming, show SB fixed odds.
                 let secondOddsLabel = 'SB';
-                let secondOddsText = runner.sportsbet_odds ? `$${runner.sportsbet_odds.toFixed(2)}` : '-';
+                let secondOddsText = formatMoney(runner.sportsbet_odds);
                 let secondOddsClass = 'text-blue-300'; // Default SB blue
 
                 if (isResulted) {
                     secondOddsLabel = 'SP';
-                    secondOddsText = runner.starting_price ? `$${runner.starting_price.toFixed(2)}` : '-';
+                    secondOddsText = formatMoney(runner.starting_price);
                     secondOddsClass = 'text-yellow-300'; // SP in yellow/gold
                 }
 
@@ -1133,7 +1181,7 @@
                 : '';
 
             return `
-                <div class="${cardClass} rounded-lg p-2 text-white transform transition hover:scale-[1.01] hover:shadow-lg">
+                <div class="${finalCardClass} rounded-lg p-2 text-white transform transition hover:scale-[1.01] hover:shadow-lg">
                     <div class="flex items-center justify-between mb-1">
                         <div class="flex items-center gap-1.5 min-w-0 flex-1">
                             <div class="text-[9px] ${badgeColor} px-1.5 rounded-sm text-white/90 font-bold uppercase tracking-wider flex-shrink-0">
@@ -1204,9 +1252,36 @@
 
                 if (!passesViewFilter) return false;
 
-                // Filter by runner count (only show 4-5 runners in race cards for both views)
-                // Stats will still show all runner counts in History view
-                if (![4, 5].includes(race.active_runner_count)) {
+                // Blue Opportunity Logic (2 favs < $3, rest > $10)
+                // Filter scratches first
+                const activeRunnersArr = (race.runners || []).filter(r => !r.is_scratched);
+
+                // Only consider if we have data (at least 2 runners have odds)
+                const runnersWithOdds = activeRunnersArr.filter(r => r.sportsbet_odds > 0);
+                const hasEnoughData = runnersWithOdds.length >= 2;
+
+                let isBlueOpp = false;
+                if (hasEnoughData && race.active_runner_count >= 5 && race.active_runner_count <= 8) {
+                    const shortFavs = activeRunnersArr.filter(r => r.sportsbet_odds > 0 && r.sportsbet_odds < 3.00);
+                    // Check if others are long shots (either > $10 OR no odds data, we assume market corrects eventually, but for safety check known odds)
+                    // Strict logic: All active runners EXCEPT the short favs must be >= 10.
+
+                    if (shortFavs.length === 2) {
+                        const others = activeRunnersArr.filter(r => r.sportsbet_odds > 0 && r.sportsbet_odds >= 3.00);
+                        const othersAreLong = others.every(r => r.sportsbet_odds >= 10.00);
+
+                        // Also ensure we actually HAVE others to beat
+                        if (others.length > 0 && othersAreLong) {
+                            isBlueOpp = true;
+                        }
+                    }
+                }
+
+                // Tag for sort
+                race.isBlueOpp = isBlueOpp;
+
+                // Filter by runner count (only show 4-5 runners OR Blue Opportunities)
+                if (![4, 5].includes(race.active_runner_count) && !isBlueOpp) {
                     return false;
                 }
 
@@ -1248,8 +1323,17 @@
                 return { total, todayCount, tomorrowCount };
             }
 
+            function countBlueStats() {
+                const blueRaces = statsRaces.filter(r => isRaceBlueOpp(r));
+                const total = blueRaces.length;
+                const todayCount = blueRaces.filter(r => new Date(r.race_time).toLocaleDateString('en-CA') === todayStr).length;
+                const tomorrowCount = blueRaces.filter(r => new Date(r.race_time).toLocaleDateString('en-CA') > todayStr).length;
+                return { total, todayCount, tomorrowCount };
+            }
+
             const stats4 = countStats(4);
             const stats5 = countStats(5);
+            const statsBlue = countBlueStats();
 
             document.getElementById('stats4Total').textContent = stats4.total;
             document.getElementById('stats4Today').textContent = stats4.todayCount;
@@ -1258,6 +1342,10 @@
             document.getElementById('stats5Total').textContent = stats5.total;
             document.getElementById('stats5Today').textContent = stats5.todayCount;
             document.getElementById('stats5Tomorrow').textContent = stats5.tomorrowCount;
+
+            document.getElementById('statsBlueTotal').textContent = statsBlue.total;
+            document.getElementById('statsBlueToday').textContent = statsBlue.todayCount;
+            document.getElementById('statsBlueTomorrow').textContent = statsBlue.tomorrowCount;
 
             // History Stats - Top 2 in Top 2 Strike Rates
             if (currentView === 'history') {
@@ -1312,10 +1400,12 @@
                 return;
             }
 
-            // Sort logic: Micro-Fields (4) FIRST, then by Date
+            // Sort logic: Micro-Fields (4) FIRST, then 5s, then Blue Opps (by virtue of being >5)
+            // But we filter list to [4, 5, BlueOpps]
+            // If we sort by active_runner_count, we get 4, 5, 6/7/8.
+            // This satisfies the requirement: "Blue Opps... last on the sorting after 4 runners and 5 runners"
             const sortedRaces = displayRaces.sort((a, b) => {
-                // First: Micro-fields (4) before opportunities (5)
-                // This makes ALL 4-runner races appear at the top, regardless of date
+                // Priority 1: Field Size (Smallest first)
                 if (a.active_runner_count !== b.active_runner_count) {
                     return a.active_runner_count - b.active_runner_count;
                 }
@@ -1335,7 +1425,7 @@
             // Add cards
             sortedRaces.forEach(race => {
                 const raceRunners = (race.runners || []).sort((a, b) => a.box_number - b.box_number);
-                container.innerHTML += createRaceCard(race, raceRunners);
+                container.innerHTML += createRaceCard(race, raceRunners, race.isBlueOpp);
             });
         }
 
