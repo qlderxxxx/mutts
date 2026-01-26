@@ -1782,11 +1782,6 @@
                     passesViewFilter = raceDateStr < todayStr;
                 }
 
-                // Debug logging for missing races
-                // if (!passesViewFilter && currentView === 'upcoming') {
-                //    console.log(`Filtered out [${currentView}]: ${race.meeting_name} ${race.race_number} (${raceDateStr} vs ${todayStr})`);
-                // }
-
                 if (!passesViewFilter) return false;
 
                 // Check Blue Opportunity using shared logic
@@ -2041,11 +2036,13 @@
                 return a.race_number - b.race_number;
             });
 
-            // Add cards
-            sortedRaces.forEach(race => {
+            // Add cards (Batched DOM update for performance)
+            const cardsHTML = sortedRaces.map(race => {
                 const raceRunners = (race.runners || []).sort((a, b) => a.box_number - b.box_number);
-                container.innerHTML += createRaceCard(race, raceRunners, race.isBlueOpp);
-            });
+                return createRaceCard(race, raceRunners, race.isBlueOpp);
+            }).join('');
+
+            container.innerHTML = cardsHTML;
         }
 
         // Fetch Races from Supabase
@@ -2061,10 +2058,11 @@
 
                 // Query races with their runners
                 // Fetch all races (not just 4-5) so we can show strike rates for all runner counts in History
+                // FIX: Use Newest First (desc) - Limit removed per user request
                 const { data: races, error: racesError } = await supabaseClient
                     .from('races')
                     .select('*, runners(*)')  // Optimized join
-                    .order('race_time', { ascending: true });
+                    .order('race_time', { ascending: false });
 
                 if (racesError) throw racesError;
 
