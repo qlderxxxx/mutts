@@ -2071,6 +2071,22 @@
                 // Update cache
                 // Update cache
                 cachedRaces = races || [];
+
+                // DATA DEBUGGING
+                console.log(`Fetched ${cachedRaces.length} races.`);
+                if (cachedRaces.length > 0) {
+                    const sample = cachedRaces[0];
+                    console.log('Sample Race:', sample);
+                    console.log('Sample Runners:', sample.runners);
+
+                    // Check for runners == null issues
+                    const badRaces = cachedRaces.filter(r => !r.runners || r.runners.length === 0);
+                    if (badRaces.length > 0) {
+                        console.warn(`WARNING: ${badRaces.length} races have NO runners attached!`);
+                        console.log('Bad Race Example:', badRaces[0]);
+                    }
+                }
+
                 populateTrackFilterModal(cachedRaces);
 
                 // Hide loading state
