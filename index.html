@@ -918,7 +918,9 @@
                 if (!tbody) return;
                 let html = '';
                 for (let b = 1; b <= 8; b++) {
-                    const stickyClass = "sticky left-0 bg-zinc-900 z-10 border-r border-zinc-800/50";
+                    // Remove bg-zinc-900 so box colors (defined in CSS) show through
+                    // Add min-width to ensure the sticky column has a consistent width
+                    const stickyClass = "sticky left-0 z-10 border-r border-zinc-800/50";
                     let rowHtml = `<tr class="relative"><td class="px-2 py-2 font-bold box-${b} text-black w-8 text-center rounded-sm ${stickyClass}">${b}</td>`;
 
                     let totalRuns = 0;
@@ -928,10 +930,7 @@
                     fieldSizes.forEach(size => {
                         const d = dataObj[size];
                         // dataObj[b][size] is technically wrong access pattern from previous code?
-                        // Previous code: const d = dataObj[b][size]; // Wait, renderBoxMatrix passes stats.boxGeneral which IS map by box.
-                        // dataObj is stats.boxGeneral.
-                        // stats.boxGeneral[b] is a map of sizes.
-                        // SO dataObj[b][size] is correct.
+                        // Previous code corrected this to:
                         const boxData = dataObj[b][size];
 
                         totalRuns += boxData.runs;
@@ -1027,6 +1026,8 @@
                         ${th('Top2in2 (4)', 'top2in2Rate4')}
                         ${th('Box 1 Fav Wins', 'box1FavWins')}
                         ${th('Box 1 Fav %', 'box1FavRate')}
+                        ${th('Box 1 Short Wins', 'box1ShortFavWins')}
+                        ${th('Box 1 Short %', 'box1ShortFavRate')}
                         ${th('Track Fav ROI', 'trackFavROI')}
                         ${th('Short Fav ROI', 'shortFavROI')}
                         ${th('Box 1 Fav ROI', 'box1FavROI')}
@@ -1051,6 +1052,9 @@
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1FavWins}</td>
                         <td class="px-2 py-3 text-center text-zinc-400">${t.box1FavRuns > 0 ? t.box1FavRate.toFixed(1) + '%' : '-'}</td>
                         
+                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1ShortFavWins}</td>
+                        <td class="px-2 py-3 text-center text-zinc-400">${t.box1ShortFavRuns > 0 ? t.box1ShortFavRate.toFixed(1) + '%' : '-'}</td>
+
                         <!-- Track Fav ROI -->
                         <td class="px-2 py-3 text-center font-mono text-xs">${formatROI(t.favProfit, t.favBets)}</td>
 
@@ -1125,6 +1129,8 @@
                         ${th('Top2in2 (4)', 'top2in2Rate4')}
                         ${th('Box 1 Fav Wins', 'box1FavWins')}
                         ${th('Box 1 Fav %', 'box1FavRate')}
+                        ${th('Box 1 Short Wins', 'box1ShortFavWins')}
+                        ${th('Box 1 Short %', 'box1ShortFavRate')}
                         ${th('Dist Fav ROI', 'favROI')}
                         ${th('Short Fav ROI', 'shortFavROI')}
                         ${th('Box 1 Fav ROI', 'box1FavROI')}
@@ -1149,6 +1155,9 @@
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1FavWins}</td>
                         <td class="px-2 py-3 text-center text-zinc-400">${t.box1FavRuns > 0 ? t.box1FavRate.toFixed(1) + '%' : '-'}</td>
                         
+                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1ShortFavWins}</td>
+                        <td class="px-2 py-3 text-center text-zinc-400">${t.box1ShortFavRuns > 0 ? t.box1ShortFavRate.toFixed(1) + '%' : '-'}</td>
+
                         <!-- ROI Columns -->
                         <td class="px-2 py-3 text-center font-mono text-xs">${formatROI(t.favProfit, t.favBets)}</td>
                         <td class="px-2 py-3 text-center font-mono text-xs">${formatROI(t.shortProfit, t.shortBets)}</td>
