@@ -726,13 +726,39 @@ def update_race_results(race_results: Dict):
         results = race_results['results']
         
         # Find the race in database
-        race_response = supabase.table('races').select('id').eq('meeting_name', meeting_name).eq('race_number', race_number).execute()
+        # There might be multiple races with same meeting_name/number (different dates)
+        race_response = supabase.table('races').select('id').eq('meeting_name', meeting_name).eq('race_number', race_number).order('race_time', desc=True).execute()
         
         if not race_response.data:
             print(f"Race not found in DB: {meeting_name} R{race_number}")
             return
+            
+        candidates = race_response.data
+        race_id = None
         
-        race_id = race_response.data[0]['id']
+        # If only one, use it
+        if len(candidates) == 1:
+            race_id = candidates[0]['id']
+        else:
+            # Multiple candidates (e.g. today's Taree R1 vs last week's Taree R1)
+            # Find the one that actually contains our runners
+            # We check the first valid runner from our results against the candidate race
+            test_runner = next((r for r in results if r['dog_name']), None)
+            
+            if test_runner:
+                for cand in candidates:
+                    cid = cand['id']
+                    # Check if test dog exists in this race
+                    check = supabase.table('runners').select('id').eq('race_id', cid).ilike('dog_name', test_runner['dog_name']).execute()
+                    if check.data:
+                        race_id = cid
+                        # print(f"    Matched race ID {race_id} for {meeting_name} R{race_number} using dog {test_runner['dog_name']}", flush=True)
+                        break
+            
+            # Fallback: if no match found (maybe all scratched?), just use the most recent one (index 0 due to sort)
+            if not race_id:
+                race_id = candidates[0]['id']
+                print(f"    Warning: Could not confirm race ID via runner match. Defaulting to most recent: {race_id}", flush=True)
         
         # Update each runner with SP and finishing position
         # Update each runner with SP and finishing position
