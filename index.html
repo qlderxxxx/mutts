@@ -215,18 +215,69 @@
             </div>
 
             <!-- Filters for History & Stats Views -->
-            <div id="statsFiltersContainer" class="hidden flex-wrap justify-center gap-2 mt-3 text-white">
-                <button id="btn3Days" onclick="setStatsDateFilter('3days')"
-                    class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Last
-                    3 Days</button>
-                <button id="btn7Days" onclick="setStatsDateFilter('7days')"
-                    class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">Last 7 Days</button>
-                <button id="btn90Days" onclick="setStatsDateFilter('90days')"
-                    class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Last
-                    90 Days</button>
-                <button id="btnAllTime" onclick="setStatsDateFilter('all')"
-                    class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">All
-                    Time</button>
+            <!-- Filters for History & Stats Views -->
+            <div id="statsFiltersContainer"
+                class="hidden w-full max-w-6xl mx-auto flex items-center justify-between mt-3 px-4 relative">
+                <!-- Left: Date Filters -->
+                <div class="flex flex-wrap justify-center gap-2">
+                    <button id="btn3Days" onclick="setStatsDateFilter('3days')"
+                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Last
+                        3 Days</button>
+                    <button id="btn7Days" onclick="setStatsDateFilter('7days')"
+                        class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">Last 7
+                        Days</button>
+                    <button id="btn90Days" onclick="setStatsDateFilter('90days')"
+                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Last
+                        90 Days</button>
+                    <button id="btnAllTime" onclick="setStatsDateFilter('all')"
+                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">All
+                        Time</button>
+                </div>
+
+                <!-- Right: Track Filter Multi-Select -->
+                <div class="relative">
+                    <button id="btnTrackFilter" onclick="toggleTrackFilterModal()"
+                        class="px-4 py-1.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition flex items-center gap-2">
+                        <span>📍 Filter Tracks</span>
+                        <span id="trackFilterCount"
+                            class="bg-zinc-700 text-white px-1.5 rounded text-[10px] hidden">0</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                            stroke="currentColor" class="w-3 h-3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </button>
+
+                    <!-- Track Filter Modal (Pop-over) -->
+                    <div id="trackFilterModal"
+                        class="hidden absolute right-0 top-full mt-2 w-64 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 p-3 max-h-[60vh] flex flex-col">
+                        <div class="flex justify-between items-center mb-2 pb-2 border-b border-zinc-800">
+                            <span class="text-xs font-bold text-zinc-400">Select Tracks</span>
+                            <button onclick="toggleTrackFilterModal()" class="text-zinc-500 hover:text-white">✕</button>
+                        </div>
+
+                        <!-- Search/Helpers -->
+                        <div class="flex gap-2 mb-2">
+                            <button onclick="toggleAllTracks(true)"
+                                class="text-[10px] bg-zinc-800 px-2 py-1 rounded hover:bg-zinc-700 text-zinc-300">Select
+                                All</button>
+                            <button onclick="toggleAllTracks(false)"
+                                class="text-[10px] bg-zinc-800 px-2 py-1 rounded hover:bg-zinc-700 text-zinc-300">Clear</button>
+                        </div>
+
+                        <!-- Checkbox List -->
+                        <div id="trackListContainer" class="overflow-y-auto flex-1 space-y-1 pr-1 custom-scrollbar">
+                            <!-- Checkboxes populated by JS -->
+                        </div>
+
+                        <!-- Apply Button -->
+                        <div class="mt-3 pt-2 border-t border-zinc-800">
+                            <button onclick="applyTrackFilter()"
+                                class="w-full py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition">
+                                Apply Filter
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
@@ -568,6 +619,7 @@
         let currentDistanceFilter = 'all'; // 'all', 'short', 'medium', 'long'
         let currentStatsDateFilter = '7days'; // Default to Last 7 Days
         let isSmartFilterActive = false; // "Value Finder" Toggle
+        let currentStatsTrackFilter = new Set(); // Empty Set = All Tracks
 
         // Set View mode
         function setView(mode) {
@@ -646,7 +698,7 @@
             const cutoffDate = getStatsCutoff();
 
             // 1. Filter for Resulted Races with valid SPs AND Date Filter
-            const resultedRaces = cachedRaces.filter(race => {
+            let resultedRaces = cachedRaces.filter(race => {
                 const isResulted = race.status === 'resulted' || race.top_2_in_top_2 !== null;
                 if (!isResulted) return false;
 
@@ -655,7 +707,13 @@
                     if (rDate < cutoffDate) return false;
                 }
                 return true;
+                return true;
             });
+
+            // 2. Filter by Track (Cross-Filtering - Multi-Select)
+            if (currentStatsTrackFilter.size > 0) {
+                resultedRaces = resultedRaces.filter(r => currentStatsTrackFilter.has(r.meeting_name));
+            }
 
             // Data Structures
             const fieldSizes = [4, 5, 6, 7, 8];
@@ -1289,6 +1347,41 @@
             renderRaces();
         }
 
+        function populateTrackDropdown(races) {
+            const select = document.getElementById('statsTrackFilter');
+            if (!select) return;
+
+            const currentSelection = select.value;
+
+            // Get unique meeting names and sort
+            const tracks = [...new Set(races.map(r => r.meeting_name))].sort();
+
+            // Clear existing options except "All"
+            select.innerHTML = '<option value="all">All Tracks</option>';
+
+            tracks.forEach(track => {
+                const option = document.createElement('option');
+                option.value = track;
+                option.textContent = track;
+                if (track === currentSelection) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+
+            // Restore selection validation
+            if (currentSelection !== 'all' && !tracks.includes(currentSelection)) {
+                currentStatsTrackFilter = 'all';
+                select.value = 'all';
+            }
+        }
+
+        function setStatsTrackFilter(val) {
+            currentStatsTrackFilter = val;
+            if (currentView === 'stats') renderStats();
+            else renderRaces();
+        }
+
         function setDateFilter(filter) {
             currentDateFilter = filter;
             // Update buttons
@@ -1314,6 +1407,92 @@
 
             if (typeof renderRaces === 'function') {
                 renderRaces();
+            }
+        }
+
+        // --- Multi-Select Track Filter Logic ---
+
+        function toggleTrackFilterModal() {
+            const modal = document.getElementById('trackFilterModal');
+            modal.classList.toggle('hidden');
+        }
+
+        function populateTrackFilterModal(races) {
+            const container = document.getElementById('trackListContainer');
+            if (!container) return;
+
+            // Get unique meeting names
+            const tracks = [...new Set(races.map(r => r.meeting_name))].sort();
+
+            // Save current selection to restore
+            const currentSelection = new Set(currentStatsTrackFilter);
+
+            container.innerHTML = '';
+
+            tracks.forEach(track => {
+                const isSelected = currentSelection.has(track);
+
+                const label = document.createElement('label');
+                label.className = "flex items-center gap-2 p-1.5 hover:bg-zinc-800 rounded cursor-pointer text-xs text-zinc-300";
+
+                const checkbox = document.createElement('input');
+                checkbox.type = "checkbox";
+                checkbox.value = track;
+                checkbox.checked = isSelected;
+                checkbox.className = "accent-blue-600 rounded bg-zinc-700 border-zinc-600";
+
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(track));
+
+                container.appendChild(label);
+            });
+
+            updateTrackFilterCount();
+        }
+
+        function toggleAllTracks(select) {
+            const checkboxes = document.querySelectorAll('#trackListContainer input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = select);
+        }
+
+        function applyTrackFilter() {
+            const checkboxes = document.querySelectorAll('#trackListContainer input[type="checkbox"]');
+            const newSelection = new Set();
+            let allUnchecked = true;
+
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    newSelection.add(cb.value);
+                    allUnchecked = false;
+                }
+            });
+
+            // If nothing checked, treat as "All" (empty set)
+            if (allUnchecked) {
+                currentStatsTrackFilter.clear();
+            } else {
+                currentStatsTrackFilter = newSelection;
+            }
+
+            toggleTrackFilterModal();
+            updateTrackFilterCount();
+
+            if (currentView === 'stats') renderStats();
+            else renderRaces();
+        }
+
+        function updateTrackFilterCount() {
+            const countSpan = document.getElementById('trackFilterCount');
+            const size = currentStatsTrackFilter.size;
+            if (size > 0) {
+                countSpan.textContent = size;
+                countSpan.classList.remove('hidden');
+                document.getElementById('btnTrackFilter').classList.add('bg-blue-900/40', 'border-blue-500/50', 'text-blue-200');
+                document.getElementById('btnTrackFilter').classList.remove('bg-zinc-800', 'text-zinc-300', 'border-zinc-700');
+            } else {
+                countSpan.classList.add('hidden');
+                document.getElementById('btnTrackFilter').classList.remove('bg-blue-900/40', 'border-blue-500/50', 'text-blue-200');
+                document.getElementById('btnTrackFilter').classList.add('bg-zinc-800', 'text-zinc-300', 'border-zinc-700');
             }
         }
 
@@ -1603,6 +1782,11 @@
                     passesViewFilter = raceDateStr < todayStr;
                 }
 
+                // Debug logging for missing races
+                // if (!passesViewFilter && currentView === 'upcoming') {
+                //    console.log(`Filtered out [${currentView}]: ${race.meeting_name} ${race.race_number} (${raceDateStr} vs ${todayStr})`);
+                // }
+
                 if (!passesViewFilter) return false;
 
                 // Check Blue Opportunity using shared logic
@@ -1648,23 +1832,18 @@
 
                     // Rule 4: "Dead Box" Avoidance (Strict)
                     // Neither the 1st nor 2nd Fav should be in Box 5 or Box 7
-                    // Analysis showed these boxes have ~10% SR vs >40% for inside boxes.
                     const badBoxes = [5, 7];
                     if (badBoxes.includes(fav1.box_number)) return false;
                     if (badBoxes.includes(fav2.box_number)) return false;
                 }
 
+                // Filter by Track (History View Cross-Filtering - Multi-Select)
+                if (currentView === 'history' && currentStatsTrackFilter.size > 0) {
+                    if (!currentStatsTrackFilter.has(race.meeting_name)) return false;
+                }
+
                 return true;
             });
-
-            // Handle empty state
-            document.getElementById('noRacesState').classList.add('hidden');
-            if (displayRaces.length === 0) {
-                document.getElementById('noRacesState').classList.remove('hidden');
-                document.getElementById('microFieldCount').textContent = '0';
-                document.getElementById('opportunityCount').textContent = '0';
-                return; // Nothing else to do
-            }
 
             // Stats Calculation (Global based on cachedRaces, not just view)
             // We want to show stats for "Upcoming" races usually
@@ -1672,6 +1851,12 @@
 
             const statsRaces = cachedRaces.filter(race => {
                 const rDate = new Date(race.race_time).toLocaleDateString('en-CA');
+
+                // Active Track Filter?
+                if (currentStatsTrackFilter.size > 0 && !currentStatsTrackFilter.has(race.meeting_name)) {
+                    return false;
+                }
+
                 return rDate >= todayStr; // Only count Today & Future for the dashboard
             });
 
@@ -1695,13 +1880,35 @@
             const stats5 = countStats(5);
             const statsBlue = countBlueStats();
 
-            document.getElementById('stats4Total').textContent = stats4.total;
-            document.getElementById('stats4Today').textContent = stats4.todayCount;
-            document.getElementById('stats4Tomorrow').textContent = stats4.tomorrowCount;
+            // Safe update of DOM elements
+            const safeSetText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
 
-            document.getElementById('stats5Total').textContent = stats5.total;
-            document.getElementById('stats5Today').textContent = stats5.todayCount;
-            document.getElementById('stats5Tomorrow').textContent = stats5.tomorrowCount;
+            safeSetText('stats4Total', stats4.total);
+            safeSetText('stats4Today', stats4.todayCount);
+            safeSetText('stats4Tomorrow', stats4.tomorrowCount);
+
+            safeSetText('stats5Total', stats5.total);
+            safeSetText('stats5Today', stats5.todayCount);
+            safeSetText('stats5Tomorrow', stats5.tomorrowCount);
+
+            safeSetText('statsBlueTotal', statsBlue.total);
+            safeSetText('statsBlueToday', statsBlue.todayCount);
+            safeSetText('statsBlueTomorrow', statsBlue.tomorrowCount);
+
+
+            // Handle empty state
+            document.getElementById('noRacesState').classList.add('hidden');
+            if (displayRaces.length === 0) {
+                document.getElementById('noRacesState').classList.remove('hidden');
+                return; // Nothing else to do
+            }
+
+
+
+
 
             document.getElementById('statsBlueTotal').textContent = statsBlue.total;
             document.getElementById('statsBlueToday').textContent = statsBlue.todayCount;
@@ -1731,7 +1938,14 @@
                     if (cutoffDate && rDate < cutoffDate) return false;
 
                     // Only historical races with results
-                    return race.top_2_in_top_2 !== null;
+                    if (race.top_2_in_top_2 === null) return false;
+
+                    // Apply Track Filter (Multi-Select)
+                    if (currentStatsTrackFilter.size > 0 && !currentStatsTrackFilter.has(race.meeting_name)) {
+                        return false;
+                    }
+
+                    return true;
                 });
 
                 function calculateStrikeRate(runnerCount) {
@@ -1855,7 +2069,9 @@
                 if (racesError) throw racesError;
 
                 // Update cache
+                // Update cache
                 cachedRaces = races || [];
+                populateTrackFilterModal(cachedRaces);
 
                 // Hide loading state
                 loading.classList.add('hidden');
