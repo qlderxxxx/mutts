@@ -768,6 +768,21 @@
                     // We treat these as aggregate Performance of "Backing Favourites"
                     stats.general[runnerCount].profit += runProfit;
                     if (isShortPriced) stats.short[runnerCount].profit += runProfit;
+
+                    // Track & Distance Stats: Overall Fav P&L
+                    stats.tracks[race.meeting_name].favBets++;
+                    stats.tracks[race.meeting_name].favProfit += runProfit;
+
+                    stats.distances[distKey].favBets++;
+                    stats.distances[distKey].favProfit += runProfit;
+
+                    if (isShortPriced) {
+                        stats.tracks[race.meeting_name].shortBets++;
+                        stats.tracks[race.meeting_name].shortProfit += runProfit;
+
+                        stats.distances[distKey].shortBets++;
+                        stats.distances[distKey].shortProfit += runProfit;
+                    }
                 });
 
                 if (favWon) {
