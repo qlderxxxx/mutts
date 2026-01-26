@@ -205,6 +205,13 @@
                         Tomorrow
                     </button>
                 </div>
+                <!-- Smart VALUE Filter -->
+                <div id="smartFilterWrapper" class="flex gap-2 border-l border-zinc-700 pl-2">
+                    <button id="btnSmartFilter" onclick="toggleSmartFilter()"
+                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 transition flex items-center gap-1">
+                        <span>💎</span> Value
+                    </button>
+                </div>
             </div>
 
             <!-- Filters for History & Stats Views -->
@@ -560,6 +567,7 @@
         let currentDateFilter = 'all'; // 'all', 'today', or 'tomorrow'
         let currentDistanceFilter = 'all'; // 'all', 'short', 'medium', 'long'
         let currentStatsDateFilter = '7days'; // Default to Last 7 Days
+        let isSmartFilterActive = false; // "Value Finder" Toggle
 
         // Set View mode
         function setView(mode) {
@@ -1270,6 +1278,17 @@
             }
         }
 
+        function toggleSmartFilter() {
+            isSmartFilterActive = !isSmartFilterActive;
+            const btn = document.getElementById('btnSmartFilter');
+            if (isSmartFilterActive) {
+                btn.className = "px-3 py-1 rounded-full text-xs font-bold bg-blue-600 text-white border border-blue-500 hover:bg-blue-500 transition flex items-center gap-1 shadow-[0_0_10px_rgba(37,99,235,0.5)]";
+            } else {
+                btn.className = "px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 transition flex items-center gap-1";
+            }
+            renderRaces();
+        }
+
         function setDateFilter(filter) {
             currentDateFilter = filter;
             // Update buttons
@@ -1602,6 +1621,24 @@
                     } else if (currentDateFilter === 'tomorrow') {
                         if (raceDateStr !== tomorrowStr) return false;
                     }
+                }
+
+                // Smart Filter: Short Fav (< $2.00) AND Small Field (<= 6) OR Blue Opp
+                if (isSmartFilterActive && currentView === 'upcoming') {
+                    // Check for short price fav
+                    const activeRunners = (race.runners || []).filter(r => !r.is_scratched && r.sportsbet_odds > 0);
+                    if (activeRunners.length === 0) return false;
+
+                    const minOdds = Math.min(...activeRunners.map(r => r.sportsbet_odds));
+                    const hasShortFav = minOdds < 2.00;
+                    const isSmallField = race.active_runner_count <= 6;
+
+                    // Logic: Must have Short Fav AND (Small Field OR be a Top 2 Opp)
+                    // If it's a Blue Opp, we always show it? Or strictly enforce short fav?
+                    // "Value Finder" implies finding the favs.
+                    // Let's stick to strict: Short Fav + Small Field/Blue
+                    if (!hasShortFav) return false;
+                    if (!isSmallField && !isBlueOpp) return false;
                 }
 
                 return true;
