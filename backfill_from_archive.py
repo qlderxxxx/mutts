@@ -1,225 +1,272 @@
 """
-Backfill results by finding the real meeting URLs from the form guide archive.
-This works by:
-1. Finding races from N days ago in the database
-2. Scraping the form guide page for that date to get real meeting URLs
-3. Matching meetings by name and date
-4. Scraping results using the real URLs
+Backfill script to scrape historical race data (Fields + Results) 
+starting from Jan 1st, 2026 to Present.
+
+Strategy:
+1. Iterate dates (YYYY-MM-DD)
+2. Visit https://www.thegreyhoundrecorder.com.au/results/search/YYYY-MM-DD/
+3. Extract meeting links -> Get Meeting ID and Name.
+4. Construct Form Guide URL: /form-guides/[slug]/fields/[id]/
+5. Scrape Fields (Runners/Boxes) -> Insert into DB.
+6. Scrape Results -> Update DB.
 """
 
 import os
+import sys
+import re
 from datetime import datetime, timedelta
-from typing import List, Dict
-from supabase import create_client
+import time
+from playwright.sync_api import sync_playwright
+from bs4 import BeautifulSoup
+from supabase import create_client, Client
 
-# Import from main scraper
-from scraper import scrape_meeting_results, update_race_results, AEST, fetch_page
+# Import existing scrapers 
+# (Assuming they are in the same directory)
+from scraper import scrape_meeting_fields
+from new_results_scraper import scrape_meeting_results_new
 
-# Supabase credentials
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+# Supabase Setup
+SUPABASE_URL = os.environ.get("SUPABASE_URL", 'https://yvnkyakuamvahtiwbneq.supabase.co')
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2bmt5YWt1YW12YWh0aXdibmVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5Mzg4MTQsImV4cCI6MjA4NDUxNDgxNH0.-v9LyyRgX2tj9EFCImHo44XxSQcZ4_GmQZw-q7ZTX5I')
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("SUPABASE_URL and SUPABASE_KEY environment variables must be set")
+    print("Error: Supabase creds missing")
+    sys.exit(1)
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-RESULTS_URL = "https://www.thegreyhoundrecorder.com.au/results/"
+START_DATE = datetime(2026, 1, 1) # Jan 1st 2026
+END_DATE = datetime.now()
 
-def get_meeting_urls_for_date(target_date: datetime) -> Dict[str, str]:
+def get_meetings_for_date(date_obj):
     """
-    Scrape the results page to get real meeting URLs for a specific date.
-    The results page shows historical dates with links to each meeting's results.
-    Returns dict of {meeting_name: results_url}
+    Scrape the search results page to find meetings for a specific date.
+    URL: https://www.thegreyhoundrecorder.com.au/results/search/YYYY-MM-DD/
     """
-    print(f"\nFetching results page to find meeting URLs for {target_date.strftime('%Y-%m-%d')}...")
+    date_str = date_obj.strftime('%Y-%m-%d')
+    url = f"https://www.thegreyhoundrecorder.com.au/results/search/{date_str}/"
     
-    # Format date for the results page search (YYYY-MM-DD)
-    date_str = target_date.strftime('%Y-%m-%d')
-    results_search_url = f"{RESULTS_URL}?date={date_str}"
+    print(f"\nSearching meetings for {date_str}...")
     
-    soup = fetch_page(results_search_url)
-    if not soup:
-        print("Could not fetch results page")
-        return {}
+    meetings = []
     
-    # The results page shows meetings grouped by date
-    # Find the date header for our target date
-    target_date_display = target_date.strftime('%A, %B %d')  # e.g., "Wednesday, January 21"
-    
-    meetings = {}
-    
-    # Find all meeting result links
-    # They appear as links with meeting names followed by "Results" buttons
-    meeting_sections = soup.find_all('div', class_='results-meeting')
-    
-    if not meeting_sections:
-        # Try alternative structure - look for meeting names and Results buttons
-        print("Trying alternative parsing method...")
-        
-        # Find all Results buttons/links
-        result_links = soup.select('a[href*="/results/"]')
-        
-        for link in result_links:
-            href = link.get('href')
-            if not href or '/results/' not in href:
-                continue
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        page = browser.new_page()
+        try:
+            page.goto(url, wait_until='networkidle', timeout=30000)
+            content = page.content()
+            soup = BeautifulSoup(content, 'html.parser')
             
-            # Extract meeting name from URL
-            # URL format: /results/[track-name]/[meeting-id]/
-            url_parts = href.split('/')
-            if len(url_parts) >= 4:
-                track_slug = url_parts[-3] if url_parts[-1] == '' else url_parts[-2]
-                meeting_name = track_slug.replace('-', ' ').title()
-                
-                # Validate ID: Must be numeric and logical (e.g. > 240000)
-                # This filters out date-based IDs (e.g. 220126) and generic pages
-                meeting_id = url_parts[-2]
-                
-                if not meeting_id.isdigit():
-                    continue
+            # The search results list meetings.
+            # Look for links like /results/[slug]/[id]/
+            # Structure matches the "Meeting List" rows usually.
+            
+            # Selector might need adjustment based on page structure.
+            # Based on inspection of similar pages:
+            # Usually in a table or list. Let's look for known patterns.
+            # Links containing '/results/' and an ID.
+            
+            links = soup.select('a[href*="/results/"]')
+            
+            seen_ids = set()
+            
+            for link in links:
+                href = link.get('href')
+                # Pattern: /results/track-name/123456/
+                match = re.search(r'/results/([^/]+)/(\d+)/?$', href)
+                if match:
+                    slug = match.group(1)
+                    meeting_id = match.group(2)
+                    meeting_name = slug.replace('-', ' ').title()
                     
-                if int(meeting_id) < 240000:
-                    print(f"  Skipping likely invalid/date ID: {meeting_name} -> {meeting_id}")
-                    continue
-
-                # Build full URL
-                if not href.startswith('http'):
-                    href = 'https://www.thegreyhoundrecorder.com.au' + href
-                
-                # Convert results URL back to form guide URL for consistency
-                # /results/angle-park/250176/ -> /form-guides/angle-park/fields/250176/
-                form_guide_url = href.replace('/results/', '/form-guides/').replace(f'/{meeting_id}/', f'/fields/{meeting_id}/')
-                
-                if meeting_name not in meetings:
-                    meetings[meeting_name] = form_guide_url
-                    print(f"  Found: {meeting_name} -> {form_guide_url}")
-    
+                    if meeting_id not in seen_ids:
+                        seen_ids.add(meeting_id)
+                        
+                        # Construct Form Guide URL
+                        # Note: Sometimes the ID in results is different? 
+                        # User said: "results/addington/249609/" -> "form-guides/addington/fields/249609/"
+                        # So ID is shared.
+                        
+                        form_url = f"https://www.thegreyhoundrecorder.com.au/form-guides/{slug}/fields/{meeting_id}/"
+                        
+                        meetings.append({
+                            'id': meeting_id,
+                            'name': meeting_name,
+                            'slug': slug,
+                            'form_url': form_url,
+                            'results_url': f"https://www.thegreyhoundrecorder.com.au{href}" if href.startswith('/') else href
+                        })
+            
+        except Exception as e:
+            print(f"Error fetching search page: {e}")
+        finally:
+            browser.close()
+            
     return meetings
 
-def backfill_from_archive(days_ago: int = 2):
+def save_race_to_db(race_data):
     """
-    Backfill results for races from N days ago by finding real meeting URLs.
+    Save scraped race data (from fields) to Supabase.
+    Logic copied from scraper.py upsert_race_data but simplified.
     """
-    print(f"\n{'='*60}")
-    print(f"BACKFILLING RESULTS FROM {days_ago} DAYS AGO")
-    print(f"{'='*60}\n")
-    
-    # Calculate target date
-    today = datetime.now(AEST)
-    target_date = today - timedelta(days=days_ago)
-    target_date_str = target_date.strftime('%Y-%m-%d')
-    
-    print(f"Target date: {target_date_str}")
-    
-    # Get real meeting URLs from the form guide archive
-    real_meeting_urls = get_meeting_urls_for_date(target_date)
-    
-    if not real_meeting_urls:
-        print(f"\nNo meetings found on form guide for {target_date_str}")
-        print("The form guide might only show today/tomorrow, or the date might be too old.")
-        return
-    
-    print(f"\nFound {len(real_meeting_urls)} meetings with real URLs")
-    
-    # Fetch races from database for this date
     try:
-        response = supabase.table('races').select('meeting_name, race_number, status, meeting_url').gte('race_time', target_date_str).lt('race_time', target_date_str + 'T23:59:59').execute()
-        db_races = response.data
+        # Prepare race record
+        race_record = {
+            'meeting_name': race_data['meeting_name'],
+            'meeting_url': race_data['meeting_url'],
+            'race_number': race_data['race_number'],
+            'race_time': race_data['race_time'], # YYYY-MM-DD from scraper
+            'distance_meters': race_data.get('distance_meters'),
+            'status': 'closed', # Set to closed so it gets picked up by backfill_results (which looks for != resulted)
+            'active_runner_count': race_data['active_runner_count']
+        }
         
-        print(f"Found {len(db_races)} races in database for {target_date_str}")
+        # Conflict resolution is tricky. 
+        # scraper.py deletes based on meeting+race+time range.
+        # Here we have exact date.
         
-        # Group by meeting name
-        db_meetings = {}
-        for race in db_races:
-            meeting_name = race['meeting_name']
-            if meeting_name not in db_meetings:
-                db_meetings[meeting_name] = []
-            db_meetings[meeting_name].append(race)
+        # Check if race exists
+        # We match on meeting_name + race_number + date (race_time)
+        res = supabase.table('races').select('id').match({
+            'meeting_name': race_data['meeting_name'],
+            'race_number': race_data['race_number'],
+            'race_time': race_data['race_time']
+        }).execute()
         
-        # Match meetings and scrape results
-        all_results = []
-        
-        # Merge web-found meetings and DB-found meetings
-        # Web found (real_meeting_urls) takes precedence if VALID
-        
-        # Check DB races for valid meeting URLs first
-        db_urls = {}
-        for race in db_races:
-            m_name = race['meeting_name']
-            m_url = race.get('meeting_url')
-            # Extract ID from DB URL if present
-            if m_url and '/form-guides/' in m_url:
-                try:
-                    # Simple check for ID validity
-                    # .../fields/250176/
-                    parts = m_url.strip('/').split('/')
-                    if parts[-1].isdigit() and int(parts[-1]) > 240000:
-                        db_urls[m_name] = m_url
-                except:
-                    pass
-
-        # Combined list of meeting names to check
-        all_meeting_names = set(db_meetings.keys())
-        
-        for meeting_name in all_meeting_names:
-            # Determine which URL to use
-            scrape_url = None
-            source = "None"
-            
-            if meeting_name in real_meeting_urls:
-                scrape_url = real_meeting_urls[meeting_name]
-                source = "Web Archive"
-            elif meeting_name in db_urls:
-                scrape_url = db_urls[meeting_name]
-                source = "DB Record"
-            
-            if scrape_url:
-                races_count = len(db_meetings[meeting_name])
-                resulted_count = sum(1 for r in db_meetings[meeting_name] if r.get('status') == 'resulted')
-                
-                print(f"\n[{meeting_name}] {races_count} races (Source: {source}), {resulted_count} resulted")
-                
-                if resulted_count < races_count:
-                    print(f"  Scraping results from {scrape_url}...")
-                    results = scrape_meeting_results(scrape_url, meeting_name)
-                    all_results.extend(results)
-                    print(f"  -> Found {len(results)} race results")
-                else:
-                    print(f"  All races already have results, skipping")
-            else:
-                print(f"\n[{meeting_name}] No valid URL found in Archive or DB. Skipping.")
-        
-        # Update database
-        if all_results:
-            print(f"\n{'='*60}")
-            print(f"UPDATING DATABASE WITH {len(all_results)} RACE RESULTS")
-            print(f"{'='*60}\n")
-            
-            for idx, race_results in enumerate(all_results, 1):
-                meeting_name = race_results['meeting_name']
-                race_number = race_results['race_number']
-                print(f"[{idx}/{len(all_results)}] Updating {meeting_name} R{race_number}...")
-                update_race_results(race_results)
-            
-            print(f"\n{'='*60}")
-            print(f"BACKFILL COMPLETE!")
-            print(f"{'='*60}")
-            print(f"Updated {len(all_results)} races with results")
+        race_id = None
+        if res.data:
+            race_id = res.data[0]['id']
+            # Update existing
+            supabase.table('races').update(race_record).eq('id', race_id).execute()
         else:
-            print("\nNo results to update")
-        
-    except Exception as e:
-        print(f"Error during backfill: {e}")
-        raise
+            # Insert new
+            res = supabase.table('races').insert(race_record).execute()
+            if res.data:
+                race_id = res.data[0]['id']
 
-if __name__ == '__main__':
-    import sys
-    days_ago = 2
-    if len(sys.argv) > 1:
-        try:
-            days_ago = int(sys.argv[1])
-        except ValueError:
-            print(f"Invalid argument: {sys.argv[1]}. Using default of 2 days.")
-    
-    backfill_from_archive(days_ago)
+        if not race_id:
+            print(f"Start failed for {race_data['meeting_name']} R{race_data['race_number']}")
+            return
+
+        # Handle Runners
+        # Delete existing runners
+        supabase.table('runners').delete().eq('race_id', race_id).execute()
+        
+        # Insert new runners
+        runners_to_insert = []
+        for r in race_data['runners']:
+            runners_to_insert.append({
+                'race_id': race_id,
+                'box_number': r['box_number'],
+                'dog_name': r['dog_name'],
+                'ghr_odds': r.get('ghr_odds'),
+                'sportsbet_odds': r.get('sportsbet_odds'),
+                'is_scratched': r['is_scratched']
+            })
+            
+        if runners_to_insert:
+            supabase.table('runners').insert(runners_to_insert).execute()
+            
+        return race_id
+
+    except Exception as e:
+        print(f"DB Save Error: {e}")
+        return None
+
+def update_race_results(meeting_name, race_number, race_date, results_data):
+    """
+    Update the race with results (positions and SPs).
+    """
+    try:
+        # Find race ID
+        res = supabase.table('races').select('id').match({
+            'meeting_name': meeting_name,
+            'race_number': race_number,
+            'race_time': race_date
+        }).execute()
+        
+        if not res.data:
+            print(f"Race not found for results: {meeting_name} R{race_number}")
+            return
+
+        race_id = res.data[0]['id']
+        
+        # Update runners
+        for res_runner in results_data['results']:
+             supabase.table('runners').update({
+                 'finishing_position': res_runner['finishing_position'],
+                 'starting_price': res_runner['starting_price']
+             }).match({
+                 'race_id': race_id,
+                 'box_number': res_runner['box_number']
+                 # We match box number as it's cleaner than name sometimes
+             }).execute()
+        
+        # Mark race as resulted
+        supabase.table('races').update({'status': 'resulted'}).eq('id', race_id).execute()
+        print(f"  ✅ Results updated for R{race_number}")
+
+    except Exception as e:
+        print(f"Result Update Error: {e}")
+
+def main():
+    current_date = START_DATE
+    while current_date <= END_DATE:
+        print(f"\n\n========================================")
+        print(f"PROCESSING DATE: {current_date.strftime('%Y-%m-%d')}")
+        print(f"========================================")
+        
+        meetings = get_meetings_for_date(current_date)
+        print(f"Found {len(meetings)} meetings.")
+        
+        for m in meetings:
+            print(f"\n--- Processing {m['name']} ---")
+            print(f"Fields URL: {m['form_url']}")
+            
+            # 1. Scrape Fields
+            # Note: scrape_meeting_fields returns List[Dict] (races)
+            # It expects specific DOM structure. hopefully backdated pages are same.
+            try:
+                races_data = scrape_meeting_fields(m['form_url'], m['name'])
+                
+                if not races_data:
+                    print("No races found in form guide.")
+                    continue
+                    
+                # 2. Save Race skeletons
+                for r_data in races_data:
+                    # Enforce date from our loop to ensure matching
+                    r_data['race_time'] = current_date.strftime('%Y-%m-%d')
+                    save_race_to_db(r_data)
+                    
+                print(f"Saved {len(races_data)} race skeletons.")
+                
+            except Exception as e:
+                print(f"Error scraping fields for {m['name']}: {e}")
+                continue
+
+            # 3. Scrape Results
+            try:
+                # Reuse the new results scraper
+                # scrape_meeting_results_new(url, name)
+                results = scrape_meeting_results_new(m['form_url'], m['name']) # It converts form URL to results URL inside
+                
+                for r_res in results:
+                    update_race_results(
+                        m['name'], 
+                        r_res['race_number'], 
+                        current_date.strftime('%Y-%m-%d'),
+                        r_res
+                    )
+                    
+            except Exception as e:
+                 print(f"Error scraping results for {m['name']}: {e}")
+
+        # Advance date
+        current_date += timedelta(days=1)
+        # Sleep to be nice
+        time.sleep(2)
+
+if __name__ == "__main__":
+    main()

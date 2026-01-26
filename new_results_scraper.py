@@ -20,6 +20,7 @@ def scrape_meeting_results_new(meeting_url: str, meeting_name: str) -> List[Dict
     # Convert fields URL to results URL
     # e.g., /form-guides/angle-park/fields/250176/ -> /results/angle-park/250176/
     results_url = meeting_url.replace('/form-guides/', '/results/').replace('/fields/', '/')
+    print(f"  [DEBUG] Transformed URL: {results_url}")
     
     with sync_playwright() as p:
         try:
@@ -30,16 +31,29 @@ def scrape_meeting_results_new(meeting_url: str, meeting_name: str) -> List[Dict
             page.goto(results_url, wait_until='networkidle', timeout=30000)
             page.wait_for_timeout(2000)
             
-            # Find all race navigation buttons
-            # The buttons are in a navigation area and numbered (1, 2, 3, etc.)
-            all_buttons = page.query_selector_all('button')
-            race_buttons = [btn for btn in all_buttons if btn.text_content() and btn.text_content().strip().isdigit()]
+            # Find race navigation items (DIVs with class meeting-events-nav__item)
+            # Confirmed via debug: meeting-events-nav__item
+            race_nav_items = page.query_selector_all('.meeting-events-nav__item')
             
-            num_races = len(race_buttons)
-            print(f"Found {num_races} race buttons for {meeting_name}")
+            valid_race_links = []
+            for el in race_nav_items:
+                txt = el.text_content().strip()
+                if txt.isdigit():
+                    race_num = int(txt)
+                    valid_race_links.append({
+                        'number': race_num,
+                        'text': txt
+                    })
+            
+            # Sort by race number
+            valid_race_links.sort(key=lambda x: x['number'])
+            
+            num_races = len(valid_race_links)
+            print(f"Found {num_races} race buttons (class-based) for {meeting_name}: {[r['text'] for r in valid_race_links]}")
             
             if num_races == 0:
-                # No race buttons, just scrape current page
+                print("  No race navigation found. Scraping single page.")
+                # Just scrape current page
                 html = page.content()
                 soup = BeautifulSoup(html, 'html.parser')
                 table = soup.select_one('table.results-event__table')
@@ -54,40 +68,47 @@ def scrape_meeting_results_new(meeting_url: str, meeting_name: str) -> List[Dict
                 browser.close()
                 return results
             
-            # Click through each race button
+            # Click through each race
             all_races_have_zero_sp = True
             
             for i in range(num_races):
                 try:
-                    # Re-query buttons (DOM might update)
-                    current_buttons = page.query_selector_all('button')
-                    current_race_buttons = [btn for btn in current_buttons if btn.text_content() and btn.text_content().strip().isdigit()]
+                    target_race = valid_race_links[i] 
+                    race_num = target_race['number']
                     
-                    if i < len(current_race_buttons):
-                        race_num = current_race_buttons[i].text_content().strip()
-                        print(f"  Clicking race {race_num}...")
+                    print(f"  Processing Race {race_num}...")
+                    
+                    # Click button using robust class + text selector
+                    # Re-querying ensures we don't use stale elements
+                    selector = f".meeting-events-nav__item:text-is('{race_num}')"
+                    
+                    # Check if it exists/visible
+                    if page.is_visible(selector):
+                        page.click(selector)
+                        page.wait_for_timeout(2000) # Wait for SPA update
+                    else:
+                        print(f"    Warning: Nav button for Race {race_num} not visible")
                         
-                        current_race_buttons[i].click()
-                        page.wait_for_timeout(1500)
-                        
-                        # Get updated content
-                        html = page.content()
-                        soup = BeautifulSoup(html, 'html.parser')
-                        
-                        table = soup.select_one('table.results-event__table')
-                        if table:
-                            race_data = parse_result_table(table, meeting_name, int(race_num))
-                            if race_data:
-                                if not all_sps_zero(race_data):
-                                    all_races_have_zero_sp = False
-                                    results.append(race_data)
-                                    print(f"    -> Scraped {len(race_data['results'])} runners")
-                                else:
-                                    print(f"    -> Race {race_num} has all $0 SPs, skipping")
+                    # Get updated content
+                    html = page.content()
+                    soup = BeautifulSoup(html, 'html.parser')
+                    
+                    table = soup.select_one('table.results-event__table')
+                    if table:
+                        race_data = parse_result_table(table, meeting_name, int(race_num))
+                        if race_data:
+                            if not all_sps_zero(race_data):
+                                all_races_have_zero_sp = False
+                                results.append(race_data)
+                                print(f"    -> Scraped {len(race_data['results'])} runners")
+                            else:
+                                print(f"    -> Race {race_num} has all $0 SPs, skipping")
                 
                 except Exception as e:
                     print(f"  Error scraping race {i+1}: {e}")
                     continue
+                
+
             
             browser.close()
             
@@ -112,13 +133,17 @@ def parse_result_table(table, meeting_name: str, race_number: int) -> Dict:
         race_results = []
         for row in rows:
             cells = row.select('td')
+            # DEBUG: Check row structure
             if len(cells) < 12:
+                print(f"    Warning: Row has {len(cells)} cells (expected 12). Content: {[c.get_text(strip=True) for c in cells]}")
                 continue
             
             # Extract data
             place_text = cells[0].get_text(strip=True)
             name_with_box = cells[2].get_text(strip=True)
             sp_text = cells[11].get_text(strip=True)
+
+            # print(f"    DEBUG: Box/Name: {name_with_box} | SP Raw: {sp_text}")
             
             # Parse place
             try:

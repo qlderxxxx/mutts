@@ -10,7 +10,8 @@ from typing import List, Dict
 from supabase import create_client
 
 # Import the scraping functions from the main scraper
-from scraper import scrape_meeting_results, update_race_results, AEST
+from scraper import update_race_results, AEST
+from new_results_scraper import scrape_meeting_results_new as scrape_meeting_results
 
 # Supabase credentials
 SUPABASE_URL = os.getenv('SUPABASE_URL')
