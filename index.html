@@ -1767,6 +1767,17 @@
             tomorrow.setDate(tomorrow.getDate() + 1);
             const tomorrowStr = tomorrow.toLocaleDateString('en-CA');
 
+            // Calculate history cutoff (if needed)
+            let historyCutoffTime = 0;
+            if (currentView === 'history' && currentStatsDateFilter !== 'all') {
+                const cutoff = new Date();
+                cutoff.setHours(0, 0, 0, 0);
+                if (currentStatsDateFilter === '3days') cutoff.setDate(cutoff.getDate() - 3);
+                else if (currentStatsDateFilter === '7days') cutoff.setDate(cutoff.getDate() - 7);
+                else if (currentStatsDateFilter === '90days') cutoff.setDate(cutoff.getDate() - 90);
+                historyCutoffTime = cutoff.getTime();
+            }
+
             let displayRaces = cachedRaces.filter(race => {
                 // race_time is ISO string
                 if (!race.race_time) return false;
@@ -1780,7 +1791,14 @@
                 if (currentView === 'upcoming') {
                     passesViewFilter = raceDateStr >= todayStr;
                 } else {
-                    passesViewFilter = raceDateStr < todayStr;
+                    // History: Check strict cutoff (Last 7 Days, etc)
+                    if (raceDateStr >= todayStr) return false;
+
+                    // Apply Date Filter logic here for the List View too
+                    if (currentStatsDateFilter !== 'all' && race.timestamp < historyCutoffTime) {
+                        return false;
+                    }
+                    passesViewFilter = true;
                 }
 
                 if (!passesViewFilter) return false;
