@@ -1782,6 +1782,11 @@
                     passesViewFilter = raceDateStr < todayStr;
                 }
 
+                // Debug logging for missing races
+                // if (!passesViewFilter && currentView === 'upcoming') {
+                //    console.log(`Filtered out [${currentView}]: ${race.meeting_name} ${race.race_number} (${raceDateStr} vs ${todayStr})`);
+                // }
+
                 if (!passesViewFilter) return false;
 
                 // Check Blue Opportunity using shared logic
@@ -1840,15 +1845,6 @@
                 return true;
             });
 
-            // Handle empty state
-            document.getElementById('noRacesState').classList.add('hidden');
-            if (displayRaces.length === 0) {
-                document.getElementById('noRacesState').classList.remove('hidden');
-                document.getElementById('microFieldCount').textContent = '0';
-                document.getElementById('opportunityCount').textContent = '0';
-                return; // Nothing else to do
-            }
-
             // Stats Calculation (Global based on cachedRaces, not just view)
             // We want to show stats for "Upcoming" races usually
             // But user asked for breakdown. Let's calculate based on ALL cached races that are Future or Today
@@ -1884,13 +1880,35 @@
             const stats5 = countStats(5);
             const statsBlue = countBlueStats();
 
-            document.getElementById('stats4Total').textContent = stats4.total;
-            document.getElementById('stats4Today').textContent = stats4.todayCount;
-            document.getElementById('stats4Tomorrow').textContent = stats4.tomorrowCount;
+            // Safe update of DOM elements
+            const safeSetText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
 
-            document.getElementById('stats5Total').textContent = stats5.total;
-            document.getElementById('stats5Today').textContent = stats5.todayCount;
-            document.getElementById('stats5Tomorrow').textContent = stats5.tomorrowCount;
+            safeSetText('stats4Total', stats4.total);
+            safeSetText('stats4Today', stats4.todayCount);
+            safeSetText('stats4Tomorrow', stats4.tomorrowCount);
+
+            safeSetText('stats5Total', stats5.total);
+            safeSetText('stats5Today', stats5.todayCount);
+            safeSetText('stats5Tomorrow', stats5.tomorrowCount);
+
+            safeSetText('statsBlueTotal', statsBlue.total);
+            safeSetText('statsBlueToday', statsBlue.todayCount);
+            safeSetText('statsBlueTomorrow', statsBlue.tomorrowCount);
+
+
+            // Handle empty state
+            document.getElementById('noRacesState').classList.add('hidden');
+            if (displayRaces.length === 0) {
+                document.getElementById('noRacesState').classList.remove('hidden');
+                return; // Nothing else to do
+            }
+
+
+
+
 
             document.getElementById('statsBlueTotal').textContent = statsBlue.total;
             document.getElementById('statsBlueToday').textContent = statsBlue.todayCount;
