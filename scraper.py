@@ -324,7 +324,7 @@ def scrape_meeting_results(meeting_url: str, meeting_name: str) -> List[Dict]:
             browser = p.chromium.launch(headless=False)
             page = browser.new_page()
             
-            print(f"Navigating to {results_url}...")
+            print(f"Navigating to {results_url}...", flush=True)
             page.goto(results_url, wait_until='networkidle', timeout=30000)
             page.wait_for_timeout(2000)
             
@@ -375,7 +375,7 @@ def scrape_meeting_results(meeting_url: str, meeting_name: str) -> List[Dict]:
                     if i < len(current_race_buttons):
                         button = current_race_buttons[i]
                         race_num = button.text_content().strip()
-                        print(f"  Clicking race {race_num}...")
+                        print(f"  Clicking race {race_num}...", flush=True)
                         
                         # Check if clickable (might be disabled if active)
                         # We can try to click, if it fails, we assume it's active and page is already showing it?

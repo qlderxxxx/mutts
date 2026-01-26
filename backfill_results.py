@@ -94,10 +94,13 @@ def backfill_results(days_back: int = 7):
         # Scrape results for each meeting
         all_results = []
         for idx, (meeting_url, meeting_name) in enumerate(meetings_to_scrape.items(), 1):
-            print(f"[{idx}/{len(meetings_to_scrape)}] Scraping results for {meeting_name}...")
-            results = scrape_meeting_results(meeting_url, meeting_name)
-            all_results.extend(results)
-            print(f"  -> Found {len(results)} race results")
+            print(f"[{idx}/{len(meetings_to_scrape)}] Scraping results for {meeting_name}...", flush=True)
+            try:
+                results = scrape_meeting_results(meeting_url, meeting_name)
+                all_results.extend(results)
+                print(f"  -> Found {len(results)} race results", flush=True)
+            except Exception as e:
+                print(f"  Failed to scrape {meeting_name}: {e}", flush=True)
         
         # Update database with results
         print(f"\n{'='*60}")

@@ -826,7 +826,7 @@
             const formatMoney = (val) => {
                 const num = parseFloat(val);
                 if (isNaN(num)) return '-';
-                const sign = num >= 0 ? '+' : '';
+                const sign = num >= 0 ? '+' : '-';
                 return `${sign}$${Math.abs(num).toFixed(2)}`;
             };
 
@@ -843,6 +843,26 @@
                 return `<span class="${color}">${sign}${roi.toFixed(1)}%</span>`;
             };
 
+            // Update Headers for sticky behavior
+            const updateStickyHeaders = () => {
+                const headers = [
+                    document.querySelector('#statsFavGeneral').previousElementSibling.querySelector('th:first-child'),
+                    document.querySelector('#statsFavShort').previousElementSibling.querySelector('th:first-child'),
+                    document.querySelector('#statsBoxAll').previousElementSibling.querySelector('th:first-child'),
+                    document.querySelector('#statsBoxShort').previousElementSibling.querySelector('th:first-child')
+                ];
+                headers.forEach(th => {
+                    if (th) {
+                        th.className = "px-4 py-3 text-left sticky left-0 z-10 bg-zinc-900 border-r border-zinc-800";
+                        // Maintain original padding for Box stats which was px-2 py-2
+                        if (th.textContent.trim() === 'Box') {
+                            th.className = "px-2 py-2 text-left sticky left-0 z-10 bg-zinc-900 border-r border-zinc-800";
+                        }
+                    }
+                });
+            };
+            updateStickyHeaders();
+
             const renderTableRows = (dataObj, targetId) => {
                 const tbody = document.getElementById(targetId);
                 if (!tbody) return;
@@ -858,10 +878,11 @@
                     totalProfit += d.profit;
 
                     const moneyClass = d.profit >= 0 ? 'text-green-300' : 'text-red-300';
+                    const stickyClass = "sticky left-0 bg-zinc-900 z-10 border-r border-zinc-800/50";
 
                     html += `
-                        <tr class="hover:bg-white/5 transition">
-                            <td class="px-4 py-3 font-medium text-white">${size} Runners</td>
+                        <tr class="hover:bg-white/5 transition relative">
+                            <td class="px-4 py-3 font-medium text-white ${stickyClass}">${size} Runners</td>
                             <td class="px-4 py-3 text-center text-zinc-400">${d.races}</td>
                             <td class="px-4 py-3 text-center text-zinc-300">${d.wins}</td>
                             <td class="px-4 py-3 text-right ${rateClass(d.wins, d.races)}">${calcPct(d.wins, d.races)}</td>
@@ -873,9 +894,11 @@
 
                 // Add Total Row
                 const totalMoneyClass = totalProfit >= 0 ? 'text-green-300' : 'text-red-300';
+                const stickyClass = "sticky left-0 bg-zinc-900 z-10 border-r border-zinc-800/50";
+
                 html += `
-                    <tr class="bg-zinc-800/50 font-bold border-t border-zinc-700">
-                        <td class="px-4 py-3 text-white">All Field Sizes</td>
+                    <tr class="bg-zinc-800/50 font-bold border-t border-zinc-700 relative">
+                        <td class="px-4 py-3 text-white ${stickyClass}">All Field Sizes</td>
                         <td class="px-4 py-3 text-center text-white">${totalRaces}</td>
                         <td class="px-4 py-3 text-center text-white">${totalWins}</td>
                         <td class="px-4 py-3 text-right ${rateClass(totalWins, totalRaces)}">${calcPct(totalWins, totalRaces)}</td>
@@ -895,21 +918,29 @@
                 if (!tbody) return;
                 let html = '';
                 for (let b = 1; b <= 8; b++) {
-                    let rowHtml = `<tr><td class="px-2 py-2 font-bold box-${b} text-black w-8 text-center rounded-sm">${b}</td>`;
+                    const stickyClass = "sticky left-0 bg-zinc-900 z-10 border-r border-zinc-800/50";
+                    let rowHtml = `<tr class="relative"><td class="px-2 py-2 font-bold box-${b} text-black w-8 text-center rounded-sm ${stickyClass}">${b}</td>`;
 
                     let totalRuns = 0;
                     let totalWins = 0;
                     let totalProfit = 0;
 
                     fieldSizes.forEach(size => {
-                        const d = dataObj[b][size];
-                        totalRuns += d.runs;
-                        totalWins += d.wins;
-                        totalProfit += d.profit;
+                        const d = dataObj[size];
+                        // dataObj[b][size] is technically wrong access pattern from previous code?
+                        // Previous code: const d = dataObj[b][size]; // Wait, renderBoxMatrix passes stats.boxGeneral which IS map by box.
+                        // dataObj is stats.boxGeneral.
+                        // stats.boxGeneral[b] is a map of sizes.
+                        // SO dataObj[b][size] is correct.
+                        const boxData = dataObj[b][size];
 
-                        const pct = d.runs > 0 ? Math.round((d.wins / d.runs) * 100) : 0;
-                        const cellContent = d.runs > 0
-                            ? `<div class="flex flex-col items-center"><span class="text-xs font-bold ${pct >= 40 ? 'text-green-400' : 'text-zinc-200'}">${d.wins}/${d.runs}</span><span class="text-[9px] text-zinc-400">${pct}%</span></div>`
+                        totalRuns += boxData.runs;
+                        totalWins += boxData.wins;
+                        totalProfit += boxData.profit;
+
+                        const pct = boxData.runs > 0 ? Math.round((boxData.wins / boxData.runs) * 100) : 0;
+                        const cellContent = boxData.runs > 0
+                            ? `<div class="flex flex-col items-center"><span class="text-xs font-bold ${pct >= 40 ? 'text-green-400' : 'text-zinc-200'}">${boxData.wins}/${boxData.runs}</span><span class="text-[9px] text-zinc-400">${pct}%</span></div>`
                             : '<span class="text-zinc-600">-</span>';
                         rowHtml += `<td class="px-2 py-2 border-l border-zinc-800/50 text-center">${cellContent}</td>`;
                     });
@@ -956,7 +987,9 @@
                         box1ShortFavRate: d.box1ShortFavRuns > 0 ? (d.box1ShortFavWins / d.box1ShortFavRuns) * 100 : 0,
                         // Add Sortable ROI fields
                         favROI: d.favBets > 0 ? (d.favProfit / d.favBets) * 100 : -999,
+                        shortFavROI: d.shortBets > 0 ? (d.shortProfit / d.shortBets) * 100 : -999,
                         box1FavROI: d.box1FavRuns > 0 ? (d.box1FavProfit / d.box1FavRuns) * 100 : -999,
+                        box1ShortFavROI: d.box1ShortFavRuns > 0 ? (d.box1ShortFavProfit / d.box1ShortFavRuns) * 100 : -999,
                         trackFavROI: d.favBets > 0 ? (d.favProfit / d.favBets) * 100 : -999
                     }))
                     .filter(t => t.races >= 1)
@@ -970,8 +1003,8 @@
 
                 // Helper for headers
                 const sortIcon = (f) => window.trackSort.field === f ? (window.trackSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
-                const th = (label, field, center = true) => `
-                    <th class="px-2 py-3 ${center ? 'text-center' : 'text-left'} cursor-pointer hover:text-white transition group" 
+                const th = (label, field, center = true, sticky = false) => `
+                    <th class="px-2 py-3 ${center ? 'text-center' : 'text-left'} cursor-pointer hover:text-white transition group ${sticky ? 'sticky left-0 z-10 bg-zinc-900 border-r border-zinc-800' : ''}" 
                         onclick="window.trackSort = { field: '${field}', dir: window.trackSort.field === '${field}' && window.trackSort.dir === 'desc' ? 'asc' : 'desc' }; renderStats();">
                         <div class="flex items-center ${center ? 'justify-center' : ''} gap-1">
                             ${label} <span class="text-[10px] opacity-30 group-hover:opacity-100">${sortIcon(field)}</span>
@@ -983,7 +1016,7 @@
                 const thead = table ? table.querySelector('thead tr') : null;
                 if (thead) {
                     thead.innerHTML = `
-                        ${th('Track', 'name', false)}
+                        ${th('Track', 'name', false, true)}
                         ${th('Races', 'races')}
                         ${th('Fav Wins', 'favWins')}
                         ${th('Fav SR%', 'favRate')}
@@ -994,16 +1027,16 @@
                         ${th('Top2in2 (4)', 'top2in2Rate4')}
                         ${th('Box 1 Fav Wins', 'box1FavWins')}
                         ${th('Box 1 Fav %', 'box1FavRate')}
-                        ${th('Box 1 Fav ROI', 'box1FavROI')}
-                        ${th('Box 1 Short Wins', 'box1ShortFavWins')}
-                        ${th('Box 1 Short %', 'box1ShortFavRate')}
                         ${th('Track Fav ROI', 'trackFavROI')}
+                        ${th('Short Fav ROI', 'shortFavROI')}
+                        ${th('Box 1 Fav ROI', 'box1FavROI')}
+                        ${th('Box 1 Short ROI', 'box1ShortFavROI')}
                     `;
                 }
 
                 tracksBody.innerHTML = sortedTracks.map(t => `
-                    <tr class="hover:bg-white/5 transition border-b border-zinc-800/30 last:border-0">
-                        <td class="px-2 py-3 font-medium text-white truncate max-w-[120px]">${t.name}</td>
+                    <tr class="hover:bg-white/5 transition border-b border-zinc-800/30 last:border-0 relative">
+                        <td class="px-2 py-3 font-medium text-white truncate max-w-[120px] sticky left-0 bg-zinc-900 z-10 border-r border-zinc-800/50">${t.name}</td>
                         <td class="px-2 py-3 text-center text-zinc-300">${t.races}</td>
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.favWins}</td>
                         <td class="px-2 py-3 text-center font-bold ${t.favRate >= 40 ? 'text-green-400' : 'text-zinc-400'}">${t.favRate.toFixed(1)}%</td>
@@ -1017,13 +1050,18 @@
                         
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1FavWins}</td>
                         <td class="px-2 py-3 text-center text-zinc-400">${t.box1FavRuns > 0 ? t.box1FavRate.toFixed(1) + '%' : '-'}</td>
-                        <td class="px-2 py-3 text-center font-mono text-xs ${t.box1FavProfit >= 0 ? 'text-green-300' : 'text-red-300'}">${formatMoney(t.box1FavProfit)}</td>
                         
-                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1ShortFavWins}</td>
-                        <td class="px-2 py-3 text-center text-zinc-400">${t.box1ShortFavRuns > 0 ? t.box1ShortFavRate.toFixed(1) + '%' : '-'}</td>
-                        
-                        <!-- ROI for Track Overall (Favs) -->
+                        <!-- Track Fav ROI -->
                         <td class="px-2 py-3 text-center font-mono text-xs">${formatROI(t.favProfit, t.favBets)}</td>
+
+                        <!-- Short Fav ROI -->
+                        <td class="px-2 py-3 text-center font-mono text-xs">${formatROI(t.shortProfit, t.shortBets)}</td>
+
+                        <!-- Box 1 Fav ROI -->
+                        <td class="px-2 py-3 text-center font-mono text-xs">${formatROI(t.box1FavProfit, t.box1FavRuns)}</td>
+
+                        <!-- Box 1 Short Fav ROI -->
+                        <td class="px-2 py-3 text-center font-mono text-xs">${formatROI(t.box1ShortFavProfit, t.box1ShortFavRuns)}</td>
                     </tr>
                 `).join('');
             };
@@ -1048,7 +1086,9 @@
                         box1FavRate: d.box1FavRuns > 0 ? (d.box1FavWins / d.box1FavRuns) * 100 : 0,
                         box1ShortFavRate: d.box1ShortFavRuns > 0 ? (d.box1ShortFavWins / d.box1ShortFavRuns) * 100 : 0,
                         favROI: d.favBets > 0 ? (d.favProfit / d.favBets) * 100 : -999,
-                        box1FavROI: d.box1FavRuns > 0 ? (d.box1FavProfit / d.box1FavRuns) * 100 : -999
+                        shortFavROI: d.shortBets > 0 ? (d.shortProfit / d.shortBets) * 100 : -999,
+                        box1FavROI: d.box1FavRuns > 0 ? (d.box1FavProfit / d.box1FavRuns) * 100 : -999,
+                        box1ShortFavROI: d.box1ShortFavRuns > 0 ? (d.box1ShortFavProfit / d.box1ShortFavRuns) * 100 : -999
                     }))
                     .filter(t => t.races >= 1)
                     .sort((a, b) => {
@@ -1061,8 +1101,8 @@
 
                 // Helper for headers
                 const sortIcon = (f) => window.distSort.field === f ? (window.distSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
-                const th = (label, field, center = true) => `
-                    <th class="px-2 py-3 ${center ? 'text-center' : 'text-left'} cursor-pointer hover:text-white transition group" 
+                const th = (label, field, center = true, sticky = false) => `
+                    <th class="px-2 py-3 ${center ? 'text-center' : 'text-left'} cursor-pointer hover:text-white transition group ${sticky ? 'sticky left-0 z-10 bg-zinc-900 border-r border-zinc-800' : ''}" 
                         onclick="window.distSort = { field: '${field}', dir: window.distSort.field === '${field}' && window.distSort.dir === 'desc' ? 'asc' : 'desc' }; renderStats();">
                         <div class="flex items-center ${center ? 'justify-center' : ''} gap-1">
                             ${label} <span class="text-[10px] opacity-30 group-hover:opacity-100">${sortIcon(field)}</span>
@@ -1074,7 +1114,7 @@
                 const thead = table ? table.querySelector('thead tr') : null;
                 if (thead) {
                     thead.innerHTML = `
-                        ${th('Distance', 'rawDist', true)}
+                        ${th('Distance', 'rawDist', true, true)}
                         ${th('Races', 'races')}
                         ${th('Fav Wins', 'favWins')}
                         ${th('Fav SR%', 'favRate')}
@@ -1085,16 +1125,16 @@
                         ${th('Top2in2 (4)', 'top2in2Rate4')}
                         ${th('Box 1 Fav Wins', 'box1FavWins')}
                         ${th('Box 1 Fav %', 'box1FavRate')}
-                        ${th('Box 1 Fav ROI', 'box1FavROI')}
-                        ${th('Box 1 Short Wins', 'box1ShortFavWins')}
-                        ${th('Box 1 Short %', 'box1ShortFavRate')}
                         ${th('Dist Fav ROI', 'favROI')}
+                        ${th('Short Fav ROI', 'shortFavROI')}
+                        ${th('Box 1 Fav ROI', 'box1FavROI')}
+                        ${th('Box 1 Short ROI', 'box1ShortFavROI')}
                     `;
                 }
 
                 tbody.innerHTML = sortedDistances.map(t => `
-                    <tr class="hover:bg-white/5 transition border-b border-zinc-800/30 last:border-0">
-                        <td class="px-2 py-3 font-medium text-white text-center">${t.name}</td>
+                    <tr class="hover:bg-white/5 transition border-b border-zinc-800/30 last:border-0 relative">
+                        <td class="px-2 py-3 font-medium text-white text-center sticky left-0 bg-zinc-900 z-10 border-r border-zinc-800/50">${t.name}</td>
                         <td class="px-2 py-3 text-center text-zinc-300">${t.races}</td>
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.favWins}</td>
                         <td class="px-2 py-3 text-center font-bold ${t.favRate >= 40 ? 'text-green-400' : 'text-zinc-400'}">${t.favRate.toFixed(1)}%</td>
@@ -1108,13 +1148,12 @@
                         
                         <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1FavWins}</td>
                         <td class="px-2 py-3 text-center text-zinc-400">${t.box1FavRuns > 0 ? t.box1FavRate.toFixed(1) + '%' : '-'}</td>
-                         <td class="px-2 py-3 text-center font-mono text-xs ${t.box1FavProfit >= 0 ? 'text-green-300' : 'text-red-300'}">${formatMoney(t.box1FavProfit)}</td>
                         
-                        <td class="px-2 py-3 text-center text-zinc-200 font-mono">${t.box1ShortFavWins}</td>
-                        <td class="px-2 py-3 text-center text-zinc-400">${t.box1ShortFavRuns > 0 ? t.box1ShortFavRate.toFixed(1) + '%' : '-'}</td>
-                        
-                        <!-- ROI for Dist Overall (Favs) -->
+                        <!-- ROI Columns -->
                         <td class="px-2 py-3 text-center font-mono text-xs">${formatROI(t.favProfit, t.favBets)}</td>
+                        <td class="px-2 py-3 text-center font-mono text-xs">${formatROI(t.shortProfit, t.shortBets)}</td>
+                        <td class="px-2 py-3 text-center font-mono text-xs">${formatROI(t.box1FavProfit, t.box1FavRuns)}</td>
+                        <td class="px-2 py-3 text-center font-mono text-xs">${formatROI(t.box1ShortFavProfit, t.box1ShortFavRuns)}</td>
                     </tr>
                 `).join('');
             };
