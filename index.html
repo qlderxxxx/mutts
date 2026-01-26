@@ -1623,22 +1623,35 @@
                     }
                 }
 
-                // Smart Filter: Short Fav (< $2.00) AND Small Field (<= 6) OR Blue Opp
+                // Smart Filter: Strict "Value Finder" 💎
                 if (isSmartFilterActive && currentView === 'upcoming') {
-                    // Check for short price fav
                     const activeRunners = (race.runners || []).filter(r => !r.is_scratched && r.sportsbet_odds > 0);
-                    if (activeRunners.length === 0) return false;
+                    if (activeRunners.length < 2) return false; // Need at least 2 runners to have a "Top 2" market
 
-                    const minOdds = Math.min(...activeRunners.map(r => r.sportsbet_odds));
-                    const hasShortFav = minOdds < 2.00;
+                    // 1. Sort by Odds to find Market Leaders
+                    activeRunners.sort((a, b) => a.sportsbet_odds - b.sportsbet_odds);
+
+                    const fav1 = activeRunners[0];
+                    const fav2 = activeRunners[1];
+
+                    // Rule 1: Short Priced Favourite (< $2.00)
+                    if (fav1.sportsbet_odds >= 2.00) return false;
+
+                    // Rule 2: Small Field or Blue Opportunity
                     const isSmallField = race.active_runner_count <= 6;
-
-                    // Logic: Must have Short Fav AND (Small Field OR be a Top 2 Opp)
-                    // If it's a Blue Opp, we always show it? Or strictly enforce short fav?
-                    // "Value Finder" implies finding the favs.
-                    // Let's stick to strict: Short Fav + Small Field/Blue
-                    if (!hasShortFav) return false;
                     if (!isSmallField && !isBlueOpp) return false;
+
+                    // Rule 3: Distance >= 350m (Short sprints <350m had poor prediction rate)
+                    // Handle null distance gracefully (assume valid if missing? No, strict.)
+                    const dist = race.distance_meters || 0;
+                    if (dist < 350) return false;
+
+                    // Rule 4: "Dead Box" Avoidance (Strict)
+                    // Neither the 1st nor 2nd Fav should be in Box 5 or Box 7
+                    // Analysis showed these boxes have ~10% SR vs >40% for inside boxes.
+                    const badBoxes = [5, 7];
+                    if (badBoxes.includes(fav1.box_number)) return false;
+                    if (badBoxes.includes(fav2.box_number)) return false;
                 }
 
                 return true;
