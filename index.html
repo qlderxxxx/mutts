@@ -1272,44 +1272,55 @@
         // Check for Top 2 Opportunity (Blue)
         // For Upcoming: Uses Sportsbet Odds
         // For History: Uses Starting Price (SP) if available
+        // Check for Top 2 Opportunity (Blue)
+        // For Upcoming: Uses Sportsbet Odds
+        // For History: Uses Starting Price (SP) if available
         function isRaceBlueOpp(race) {
             const isResulted = race.status === 'resulted' || (race.top_2_in_top_2 !== null);
 
-            // 2 favs < $3, rest > $8
+            // Blue Opps are for fields of 5-8 runners
+            if (race.active_runner_count < 5 || race.active_runner_count > 8) return false;
+
             const activeRunnersArr = (race.runners || []).filter(r => !r.is_scratched);
 
             // Choose odds source based on race status
             const getOdds = (r) => isResulted ? r.starting_price : r.sportsbet_odds;
 
-            const runnersWithOdds = activeRunnersArr.filter(r => {
-                const odds = getOdds(r);
-                return odds !== null && odds > 0;
-            });
-
-            const hasEnoughData = runnersWithOdds.length >= 2;
-
-            if (hasEnoughData && race.active_runner_count >= 5 && race.active_runner_count <= 8) {
-                const shortFavs = activeRunnersArr.filter(r => {
+            // Get valid odds and sort lowest to highest
+            const runnersWithOdds = activeRunnersArr
+                .filter(r => {
                     const odds = getOdds(r);
-                    return odds > 0 && odds < 3.00;
-                });
+                    return odds !== null && odds > 0;
+                })
+                .sort((a, b) => getOdds(a) - getOdds(b));
 
-                if (shortFavs.length === 2) {
-                    const others = activeRunnersArr.filter(r => {
-                        const odds = getOdds(r);
-                        return odds > 0 && odds >= 3.00;
-                    });
-                    // Check if others are long shots (>= $8.00)
-                    const othersAreLong = others.every(r => {
-                        const odds = getOdds(r);
-                        return odds >= 8.00;
-                    });
+            if (runnersWithOdds.length < 2) return false;
 
-                    if (others.length > 0 && othersAreLong) {
-                        return true;
-                    }
-                }
-            }
+            const odds1 = getOdds(runnersWithOdds[0]);
+            const odds2 = getOdds(runnersWithOdds[1]);
+            // If there are more than 2 runners, check the rest. 
+            // If only 2 runners (unlikely given count check), conditions on "rest" are vacuously true? 
+            // The logic implies we want a gap to the "field".
+            // Let's assume we check runner 3 (index 2) onwards.
+            const rest = runnersWithOdds.slice(2);
+
+            // --- Strategy 1: The "Two Shorties" (Original) ---
+            // 2 runners < $3.00
+            // The rest >= $8.00
+            const strat1Match = (odds1 < 3.00 && odds2 < 3.00) &&
+                rest.every(r => getOdds(r) >= 8.00);
+
+            if (strat1Match) return true;
+
+            // --- Strategy 2: The "Dominant Fav + Gap" (New) ---
+            // 1st Fav <= $1.60
+            // 2nd available < $5.00
+            // The rest >= $10.00
+            const strat2Match = (odds1 <= 1.60 && odds2 < 5.00) &&
+                rest.every(r => getOdds(r) >= 10.00);
+
+            if (strat2Match) return true;
+
             return false;
         }
 
