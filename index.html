@@ -227,6 +227,13 @@
                 <button id="btnAllTime" onclick="setStatsDateFilter('all')"
                     class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">All
                     Time</button>
+
+                <div class="border-l border-zinc-700 pl-2 ml-2 flex items-center">
+                    <select id="statsTrackFilter" onchange="setStatsTrackFilter(this.value)"
+                        class="bg-zinc-800 text-zinc-300 text-xs font-bold rounded-full px-3 py-1 border border-zinc-700 focus:outline-none focus:border-zinc-500 max-w-[120px]">
+                        <option value="all">All Tracks</option>
+                    </select>
+                </div>
             </div>
         </div>
     </header>
@@ -568,6 +575,7 @@
         let currentDistanceFilter = 'all'; // 'all', 'short', 'medium', 'long'
         let currentStatsDateFilter = '7days'; // Default to Last 7 Days
         let isSmartFilterActive = false; // "Value Finder" Toggle
+        let currentStatsTrackFilter = 'all'; // Track Cross-Filter
 
         // Set View mode
         function setView(mode) {
@@ -646,7 +654,7 @@
             const cutoffDate = getStatsCutoff();
 
             // 1. Filter for Resulted Races with valid SPs AND Date Filter
-            const resultedRaces = cachedRaces.filter(race => {
+            let resultedRaces = cachedRaces.filter(race => {
                 const isResulted = race.status === 'resulted' || race.top_2_in_top_2 !== null;
                 if (!isResulted) return false;
 
@@ -655,7 +663,13 @@
                     if (rDate < cutoffDate) return false;
                 }
                 return true;
+                return true;
             });
+
+            // 2. Filter by Track (Cross-Filtering)
+            if (currentStatsTrackFilter !== 'all') {
+                resultedRaces = resultedRaces.filter(r => r.meeting_name === currentStatsTrackFilter);
+            }
 
             // Data Structures
             const fieldSizes = [4, 5, 6, 7, 8];
@@ -1289,6 +1303,41 @@
             renderRaces();
         }
 
+        function populateTrackDropdown(races) {
+            const select = document.getElementById('statsTrackFilter');
+            if (!select) return;
+
+            const currentSelection = select.value;
+
+            // Get unique meeting names and sort
+            const tracks = [...new Set(races.map(r => r.meeting_name))].sort();
+
+            // Clear existing options except "All"
+            select.innerHTML = '<option value="all">All Tracks</option>';
+
+            tracks.forEach(track => {
+                const option = document.createElement('option');
+                option.value = track;
+                option.textContent = track;
+                if (track === currentSelection) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+
+            // Restore selection validation
+            if (currentSelection !== 'all' && !tracks.includes(currentSelection)) {
+                currentStatsTrackFilter = 'all';
+                select.value = 'all';
+            }
+        }
+
+        function setStatsTrackFilter(val) {
+            currentStatsTrackFilter = val;
+            if (currentView === 'stats') renderStats();
+            else renderRaces();
+        }
+
         function setDateFilter(filter) {
             currentDateFilter = filter;
             // Update buttons
@@ -1648,10 +1697,14 @@
 
                     // Rule 4: "Dead Box" Avoidance (Strict)
                     // Neither the 1st nor 2nd Fav should be in Box 5 or Box 7
-                    // Analysis showed these boxes have ~10% SR vs >40% for inside boxes.
                     const badBoxes = [5, 7];
                     if (badBoxes.includes(fav1.box_number)) return false;
                     if (badBoxes.includes(fav2.box_number)) return false;
+                }
+
+                // Filter by Track (History View Cross-Filtering)
+                if (currentView === 'history' && currentStatsTrackFilter !== 'all') {
+                    if (race.meeting_name !== currentStatsTrackFilter) return false;
                 }
 
                 return true;
@@ -1856,6 +1909,7 @@
 
                 // Update cache
                 cachedRaces = races || [];
+                populateTrackDropdown(cachedRaces);
 
                 // Hide loading state
                 loading.classList.add('hidden');
