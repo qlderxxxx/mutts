@@ -73,18 +73,11 @@ def backfill_results(days_back: int = 7):
             # Skip fake URLs that were constructed from dates (format: /fields/DDMMYY/)
             # Real URLs from the website have unique IDs like /fields/250176/
             # Fake URLs look like /fields/220126/ (22 Jan 2026 = 220126)
-            import re
-            if re.search(r'/fields/\d{6}/$', meeting_url):
-                # Check if this looks like a date pattern (DDMMYY)
-                # Day 01-31, Month 01-12, Year 00-99
-                url_id = meeting_url.split('/fields/')[-1].rstrip('/')
-                if len(url_id) == 6:
-                    day = int(url_id[0:2])
-                    month = int(url_id[2:4])
-                    if 1 <= day <= 31 and 1 <= month <= 12:
-                        # This looks like a fake date-based URL, skip it
-                        skipped_fake_urls += 1
-                        continue
+            # Skip fake URLs that were constructed from dates (format: /fields/DDMMYY/)
+            # Real URLs from the website have unique IDs like /fields/250176/
+            # Fake URLs look like /fields/220126/ (22 Jan 2026 = 220126)
+            # UPDATE: Removed heuristic check as it was flagging real IDs (e.g. 250239) as dates
+            # trusting DB URLs now per user instruction.
             
             if meeting_url not in meetings_to_scrape:
                 meetings_to_scrape[meeting_url] = meeting_name
