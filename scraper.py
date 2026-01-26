@@ -735,16 +735,21 @@ def update_race_results(race_results: Dict):
         race_id = race_response.data[0]['id']
         
         # Update each runner with SP and finishing position
+        # Update each runner with SP and finishing position
         for result in results:
             # Find runner by race_id, dog_name, and box_number
-            runner_response = supabase.table('runners').select('id').eq('race_id', race_id).eq('dog_name', result['dog_name']).eq('box_number', result['box_number']).execute()
+            # Use ilike for case-insensitive matching (Results often UPPERCASE, Fields often Title Case)
+            runner_response = supabase.table('runners').select('id').eq('race_id', race_id).ilike('dog_name', result['dog_name']).eq('box_number', result['box_number']).execute()
             
             if runner_response.data:
                 runner_id = runner_response.data[0]['id']
+                # print(f"    Updating runner {result['dog_name']}...", flush=True)
                 supabase.table('runners').update({
                     'starting_price': result['starting_price'],
                     'finishing_position': result['finishing_position']
                 }).eq('id', runner_id).execute()
+            else:
+                print(f"    Runner match failed: {result['dog_name']} (Box {result['box_number']}) on race {race_id}", flush=True)
         
         # Calculate "Top 2 in Top 2?"
         # Get top 2 by SP (lowest odds) - MUST be strictly positive (exclude $0.00 SPs)
