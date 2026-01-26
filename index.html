@@ -1772,7 +1772,8 @@
                 if (!race.race_time) return false;
 
                 // Convert UTC race time to local date string for comparison
-                const raceDateStr = new Date(race.race_time).toLocaleDateString('en-CA');
+                // OPTIMIZATION: Use pre-calculated dateStr
+                const raceDateStr = race.dateStr || new Date(race.race_time).toLocaleDateString('en-CA');
 
                 // Filter by view (upcoming vs history)
                 let passesViewFilter = false;
@@ -1845,7 +1846,7 @@
             // But user asked for breakdown. Let's calculate based on ALL cached races that are Future or Today
 
             const statsRaces = cachedRaces.filter(race => {
-                const rDate = new Date(race.race_time).toLocaleDateString('en-CA');
+                const rDate = race.dateStr; // OPTIMIZATION
 
                 // Active Track Filter?
                 if (currentStatsTrackFilter.size > 0 && !currentStatsTrackFilter.has(race.meeting_name)) {
@@ -1857,17 +1858,17 @@
 
             function countStats(runnerCount) {
                 const total = statsRaces.filter(r => r.active_runner_count === runnerCount).length;
-                const todayCount = statsRaces.filter(r => r.active_runner_count === runnerCount && new Date(r.race_time).toLocaleDateString('en-CA') === todayStr).length;
+                const todayCount = statsRaces.filter(r => r.active_runner_count === runnerCount && r.dateStr === todayStr).length;
                 // Anything > todayStr is tomorrow+
-                const tomorrowCount = statsRaces.filter(r => r.active_runner_count === runnerCount && new Date(r.race_time).toLocaleDateString('en-CA') > todayStr).length;
+                const tomorrowCount = statsRaces.filter(r => r.active_runner_count === runnerCount && r.dateStr > todayStr).length;
                 return { total, todayCount, tomorrowCount };
             }
 
             function countBlueStats() {
                 const blueRaces = statsRaces.filter(r => isRaceBlueOpp(r));
                 const total = blueRaces.length;
-                const todayCount = blueRaces.filter(r => new Date(r.race_time).toLocaleDateString('en-CA') === todayStr).length;
-                const tomorrowCount = blueRaces.filter(r => new Date(r.race_time).toLocaleDateString('en-CA') > todayStr).length;
+                const todayCount = blueRaces.filter(r => r.dateStr === todayStr).length;
+                const tomorrowCount = blueRaces.filter(r => r.dateStr > todayStr).length;
                 return { total, todayCount, tomorrowCount };
             }
 
@@ -1923,8 +1924,8 @@
                 const cutoffDate = getStatsCutoff();
 
                 const historyRaces = cachedRaces.filter(race => {
-                    const rDate = new Date(race.race_time);
-                    const rDateStr = rDate.toLocaleDateString('en-CA');
+                    const rDate = new Date(race.race_time); // Keep this for cutoff comparison
+                    const rDateStr = race.dateStr; // OPTIMIZATION: Use pre-calc for string compare
 
                     // Basic History Check (Before Today)
                     if (rDateStr >= todayStr) return false;
@@ -2013,9 +2014,7 @@
                 if (!isA4 && isB4) return 1;
 
                 // Priority 2: Date
-                const dateA = new Date(a.race_time).toLocaleDateString('en-CA');
-                const dateB = new Date(b.race_time).toLocaleDateString('en-CA');
-                if (dateA !== dateB) return dateA.localeCompare(dateB);
+                if (a.dateStr !== b.dateStr) return a.dateStr.localeCompare(b.dateStr);
 
                 // Priority 3: Category
                 // Rank: 5 Runners (1) < Top 2 Opps (2)
@@ -2066,7 +2065,15 @@
 
                 if (racesError) throw racesError;
 
-                // Update cache
+                // PERFORMANCE OPTIMIZATION: Pre-calculate date strings and timestamps
+                // This prevents creating new Date() objects thousands of times during sorting/filtering
+                races.forEach(r => {
+                    const d = new Date(r.race_time);
+                    r.timestamp = d.getTime(); // For fast numeric sort
+                    // Use local date for "Today" grouping
+                    r.dateStr = d.toLocaleDateString('en-CA');
+                });
+
                 // Update cache
                 cachedRaces = races || [];
 
