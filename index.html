@@ -206,6 +206,21 @@
                     </button>
                 </div>
             </div>
+
+            <!-- Filters for History & Stats Views -->
+            <div id="statsFiltersContainer" class="hidden flex-wrap justify-center gap-2 mt-3 text-white">
+                <button id="btn3Days" onclick="setStatsDateFilter('3days')"
+                    class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Last
+                    3 Days</button>
+                <button id="btn7Days" onclick="setStatsDateFilter('7days')"
+                    class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">Last 7 Days</button>
+                <button id="btn90Days" onclick="setStatsDateFilter('90days')"
+                    class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Last
+                    90 Days</button>
+                <button id="btnAllTime" onclick="setStatsDateFilter('all')"
+                    class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">All
+                    Time</button>
+            </div>
         </div>
     </header>
 
@@ -304,6 +319,11 @@
                     <div class="text-[8px] text-blue-300/80" id="statsHistoryBluePct">-</div>
                 </div>
             </div>
+        </div>
+
+        <!-- Filter Context Title (Dynamic) -->
+        <div id="filterContextTitle" class="text-center text-xs text-zinc-500 mb-4 hidden">
+            Showing stats for <span id="filterContextLabel" class="text-zinc-300 font-bold">Last 7 Days</span>
         </div>
 
         <!-- Loading State -->
@@ -539,6 +559,7 @@
         let currentView = 'upcoming'; // 'upcoming' or 'history'
         let currentDateFilter = 'all'; // 'all', 'today', or 'tomorrow'
         let currentDistanceFilter = 'all'; // 'all', 'short', 'medium', 'long'
+        let currentStatsDateFilter = '7days'; // Default to Last 7 Days
 
         // Set View mode
         function setView(mode) {
@@ -548,7 +569,9 @@
             const btnHistory = document.getElementById('btnHistory');
             const btnStats = document.getElementById('btnStats');
 
-            const filtersContainer = document.getElementById('filtersContainer'); // Changed from dateFilter
+            const filtersContainer = document.getElementById('filtersContainer');
+            const statsFiltersContainer = document.getElementById('statsFiltersContainer');
+            const filterContextTitle = document.getElementById('filterContextTitle');
             const statsUpcoming = document.getElementById('statsUpcoming');
             const statsHistory = document.getElementById('statsHistory');
 
@@ -567,6 +590,8 @@
             if (mode === 'stats') {
                 if (racesContainer) racesContainer.classList.add('hidden');
                 if (filtersContainer) filtersContainer.style.display = 'none';
+                if (statsFiltersContainer) statsFiltersContainer.classList.remove('hidden');
+                if (filterContextTitle) filterContextTitle.classList.remove('hidden');
                 if (statsUpcoming) statsUpcoming.classList.add('hidden');
                 if (statsHistory) statsHistory.classList.add('hidden');
                 if (statsView) statsView.classList.remove('hidden');
@@ -578,11 +603,15 @@
 
                 if (mode === 'upcoming') {
                     if (filtersContainer) filtersContainer.style.display = 'flex';
+                    if (statsFiltersContainer) statsFiltersContainer.classList.add('hidden');
+                    if (filterContextTitle) filterContextTitle.classList.add('hidden');
                     if (statsUpcoming) statsUpcoming.classList.remove('hidden');
                     if (statsHistory) statsHistory.classList.add('hidden');
                     document.getElementById('noRacesState').classList.add('hidden');
                 } else {
                     if (filtersContainer) filtersContainer.style.display = 'none';
+                    if (statsFiltersContainer) statsFiltersContainer.classList.remove('hidden');
+                    if (filterContextTitle) filterContextTitle.classList.remove('hidden');
                     if (statsUpcoming) statsUpcoming.classList.add('hidden');
                     if (statsHistory) statsHistory.classList.remove('hidden');
                 }
@@ -595,11 +624,30 @@
 
         // Render Stats
         function renderStats() {
-            // 1. Filter for Resulted Races with valid SPs
-            // Matches logic in renderRaces history calculation: resulted or top_2 calculated
-            const resultedRaces = cachedRaces.filter(race =>
-                race.status === 'resulted' || race.top_2_in_top_2 !== null
-            );
+            // Stats Date Filter Logic
+            const getStatsCutoff = () => {
+                if (currentStatsDateFilter === 'all') return null;
+                const now = new Date();
+                now.setHours(0, 0, 0, 0); // Midnight local
+                if (currentStatsDateFilter === '3days') now.setDate(now.getDate() - 3);
+                else if (currentStatsDateFilter === '7days') now.setDate(now.getDate() - 7);
+                else if (currentStatsDateFilter === '90days') now.setDate(now.getDate() - 90);
+                return now;
+            };
+
+            const cutoffDate = getStatsCutoff();
+
+            // 1. Filter for Resulted Races with valid SPs AND Date Filter
+            const resultedRaces = cachedRaces.filter(race => {
+                const isResulted = race.status === 'resulted' || race.top_2_in_top_2 !== null;
+                if (!isResulted) return false;
+
+                if (cutoffDate) {
+                    const rDate = new Date(race.race_time);
+                    if (rDate < cutoffDate) return false;
+                }
+                return true;
+            });
 
             // Data Structures
             const fieldSizes = [4, 5, 6, 7, 8];
@@ -1184,6 +1232,44 @@
             renderDistanceTable();
 
         }
+        function setStatsDateFilter(filter) {
+            currentStatsDateFilter = filter;
+
+            // Update UI
+            const btns = {
+                '3days': document.getElementById('btn3Days'),
+                '7days': document.getElementById('btn7Days'),
+                '90days': document.getElementById('btn90Days'),
+                'all': document.getElementById('btnAllTime')
+            };
+
+            Object.keys(btns).forEach(key => {
+                if (btns[key]) {
+                    if (key === filter) {
+                        btns[key].className = "px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition";
+                    } else {
+                        btns[key].className = "px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition";
+                    }
+                }
+            });
+
+            // Update Label
+            const label = document.getElementById('filterContextLabel');
+            if (label) {
+                if (filter === '3days') label.textContent = 'Last 3 Days';
+                else if (filter === '7days') label.textContent = 'Last 7 Days';
+                else if (filter === '90days') label.textContent = 'Last 90 Days';
+                else label.textContent = 'All Time';
+            }
+
+            // Re-render based on current view
+            if (currentView === 'stats') {
+                renderStats();
+            } else if (currentView === 'history') {
+                renderRaces();
+            }
+        }
+
         function setDateFilter(filter) {
             currentDateFilter = filter;
             // Update buttons
@@ -1573,9 +1659,29 @@
 
             // History Stats - Top 2 in Top 2 Strike Rates
             if (currentView === 'history') {
+                const getStatsCutoff = () => {
+                    if (currentStatsDateFilter === 'all') return null;
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0);
+                    if (currentStatsDateFilter === '3days') now.setDate(now.getDate() - 3);
+                    else if (currentStatsDateFilter === '7days') now.setDate(now.getDate() - 7);
+                    else if (currentStatsDateFilter === '90days') now.setDate(now.getDate() - 90);
+                    return now;
+                };
+                const cutoffDate = getStatsCutoff();
+
                 const historyRaces = cachedRaces.filter(race => {
-                    const rDate = new Date(race.race_time).toLocaleDateString('en-CA');
-                    return rDate < todayStr && race.top_2_in_top_2 !== null; // Only historical races with results
+                    const rDate = new Date(race.race_time);
+                    const rDateStr = rDate.toLocaleDateString('en-CA');
+
+                    // Basic History Check (Before Today)
+                    if (rDateStr >= todayStr) return false;
+
+                    // Apply Date Filter
+                    if (cutoffDate && rDate < cutoffDate) return false;
+
+                    // Only historical races with results
+                    return race.top_2_in_top_2 !== null;
                 });
 
                 function calculateStrikeRate(runnerCount) {
