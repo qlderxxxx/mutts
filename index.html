@@ -1500,33 +1500,9 @@
 
                 if (!passesViewFilter) return false;
 
-                // Blue Opportunity Logic (2 favs < $3, rest > $10)
-                // Filter scratches first
-                const activeRunnersArr = (race.runners || []).filter(r => !r.is_scratched);
-
-                // Only consider if we have data (at least 2 runners have odds)
-                const runnersWithOdds = activeRunnersArr.filter(r => r.sportsbet_odds > 0);
-                const hasEnoughData = runnersWithOdds.length >= 2;
-
-                let isBlueOpp = false;
-                if (hasEnoughData && race.active_runner_count >= 5 && race.active_runner_count <= 8) {
-                    const shortFavs = activeRunnersArr.filter(r => r.sportsbet_odds > 0 && r.sportsbet_odds < 3.00);
-                    // Check if others are long shots (either > $10 OR no odds data, we assume market corrects eventually, but for safety check known odds)
-                    // Strict logic: All active runners EXCEPT the short favs must be >= 10.
-
-                    if (shortFavs.length === 2) {
-                        const others = activeRunnersArr.filter(r => r.sportsbet_odds > 0 && r.sportsbet_odds >= 3.00);
-                        const othersAreLong = others.every(r => r.sportsbet_odds >= 8.00);
-
-                        // Also ensure we actually HAVE others to beat
-                        if (others.length > 0 && othersAreLong) {
-                            isBlueOpp = true;
-                        }
-                    }
-                }
-
-                // Tag for sort
-                race.isBlueOpp = isBlueOpp;
+                // Check Blue Opportunity using shared logic
+                const isBlueOpp = isRaceBlueOpp(race);
+                race.isBlueOpp = isBlueOpp; // Tag for sort and card rendering
 
                 // Filter by runner count (only show 4-5 runners OR Blue Opportunities)
                 if (![4, 5].includes(race.active_runner_count) && !isBlueOpp) {
