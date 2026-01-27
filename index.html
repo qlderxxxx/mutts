@@ -1544,13 +1544,32 @@
             tmr.setDate(tmr.getDate() + 1);
             const tomorrow = tmr.toLocaleDateString('en-CA');
 
+            let label = dateStr;
             if (dateStr === today) {
-                return 'Today';
+                label = 'Today';
             } else if (dateStr === tomorrow) {
-                return 'Tomorrow';
-            } else {
-                return dateStr; // Fallback to YYYY-MM-DD
+                label = 'Tomorrow';
             }
+
+            // Append Time if not 00:00 (Midnight)
+            // Legacy data is store as YYYY-MM-DDT00:00:00Z (which converts to local time, likely not 00:00 depending on TZ)
+            // Wait, legacy backfill explicitly set time to "date", so it parses as 00:00 UTC? or Local?
+            // The user said "when the time is 00:00".
+            // Let's check hours and minutes strictly.
+            // If hours === 0 && minutes === 0, skip.
+            // CAREFUL: 12:00 AM (Midnight) is a valid time for a race, but highly unlikely for greyhounds?
+            // Usually races are 8 AM to 11 PM. Midnight racing is rare. 
+            // Better check: If valid, format it.
+
+            const hours = raceDate.getHours();
+            const minutes = raceDate.getMinutes();
+
+            if (hours !== 0 || minutes !== 0) {
+                const timeStr = raceDate.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: true });
+                return `${label} ${timeStr}`;
+            }
+
+            return label;
         }
 
         // Check for Top 2 Opportunity (Blue)
