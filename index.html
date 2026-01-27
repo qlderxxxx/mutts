@@ -191,107 +191,168 @@
 
             <!-- Date Filter & Distance Filter (only visible in Upcoming view) -->
             <!-- Filters Container (Date Filters change by view) -->
-            <div id="filtersContainer" class="flex flex-wrap justify-center gap-2 mt-3">
-                <div id="dateFilter" class="flex gap-2">
-                    <button id="btnAll" onclick="setDateFilter('all')"
-                        class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">
-                        All
-                    </button>
-                    <button id="btnToday" onclick="setDateFilter('today')"
-                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
-                        Today
-                    </button>
-                    <button id="btnTomorrow" onclick="setDateFilter('tomorrow')"
-                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
-                        Tomorrow
-                    </button>
-                </div>
-            </div>
+            <!-- UNIFIED FILTER BAR -->
+            <!-- Layout: Flex-Between. Left = Date Filters (Dynamic). Right = Global Filters (Static). -->
+            <div id="unifiedFilterBar"
+                class="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between mt-3 px-4 gap-2">
 
-            <!-- Stats Date Filters (History View) -->
-            <div id="statsFiltersContainer" class="hidden flex justify-center gap-2 mt-3">
-                <!-- Date Filters -->
-                <div class="flex flex-wrap justify-center gap-2">
-                    <button id="btn3Days" onclick="setStatsDateFilter('3days')"
-                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Last
-                        3 Days</button>
-                    <button id="btn7Days" onclick="setStatsDateFilter('7days')"
-                        class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">Last 7
-                        Days</button>
-                    <button id="btn90Days" onclick="setStatsDateFilter('90days')"
-                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Last
-                        90 Days</button>
-                    <button id="btnAllTime" onclick="setStatsDateFilter('all')"
-                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">All
-                        Time</button>
-                </div>
-            </div>
+                <!-- LEFT: Date Filters (Context Aware) -->
+                <div class="flex items-center gap-2">
+                    <!-- Upcoming View Dates -->
+                    <div id="dateFiltersUpcoming" class="flex gap-2">
+                        <button id="btnAll" onclick="setDateFilter('all')"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">All</button>
+                        <button id="btnToday" onclick="setDateFilter('today')"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Today</button>
+                        <button id="btnTomorrow" onclick="setDateFilter('tomorrow')"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Tomorrow</button>
+                    </div>
 
-            <!-- Global Filters (Country, Track, Value) - Visible in ALL views -->
-            <!-- Pushed to a new row for clarity -->
-            <div id="globalFiltersContainer"
-                class="w-full max-w-6xl mx-auto flex items-center justify-center gap-4 mt-3 px-4 relative flex-wrap">
-                <!-- Country Filter -->
-                <div class="flex items-center bg-zinc-800 rounded-full p-0.5 border border-zinc-700">
-                    <button id="btnCountryAll" onclick="setStatsCountryFilter('all')"
-                        class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">All</button>
-                    <button id="btnCountryAU" onclick="setStatsCountryFilter('au')"
-                        class="px-3 py-1 rounded-full text-xs font-bold text-zinc-400 hover:text-white transition">AU</button>
-                    <button id="btnCountryNZ" onclick="setStatsCountryFilter('nz')"
-                        class="px-3 py-1 rounded-full text-xs font-bold text-zinc-400 hover:text-white transition">NZ</button>
-                </div>
-
-                <!-- Track Filter Multi-Select -->
-                <div class="relative">
-                    <button id="btnTrackFilter" onclick="toggleTrackFilterModal()"
-                        class="px-4 py-1.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition flex items-center gap-2">
-                        <span>📍 Filter Tracks</span>
-                        <span id="trackFilterCount"
-                            class="bg-zinc-700 text-white px-1.5 rounded text-[10px] hidden">0</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
-                            stroke="currentColor" class="w-3 h-3">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                        </svg>
-                    </button>
-
-                    <!-- Track Filter Modal (Pop-over) -->
-                    <div id="trackFilterModal"
-                        class="hidden absolute right-0 top-full mt-2 w-64 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 p-3 max-h-[60vh] flex flex-col">
-                        <div class="flex justify-between items-center mb-2 pb-2 border-b border-zinc-800">
-                            <span class="text-xs font-bold text-zinc-400">Select Tracks</span>
-                            <button onclick="toggleTrackFilterModal()" class="text-zinc-500 hover:text-white">✕</button>
-                        </div>
-
-                        <!-- Search/Helpers -->
-                        <div class="flex gap-2 mb-2">
-                            <button onclick="toggleAllTracks(true)"
-                                class="text-[10px] bg-zinc-800 px-2 py-1 rounded hover:bg-zinc-700 text-zinc-300">Select
-                                All</button>
-                            <button onclick="toggleAllTracks(false)"
-                                class="text-[10px] bg-zinc-800 px-2 py-1 rounded hover:bg-zinc-700 text-zinc-300">Clear</button>
-                        </div>
-
-                        <!-- Checkbox List -->
-                        <div id="trackListContainer" class="overflow-y-auto flex-1 space-y-1 pr-1 custom-scrollbar">
-                            <!-- Checkboxes populated by JS -->
-                        </div>
-
-                        <!-- Apply Button -->
-                        <div class="mt-3 pt-2 border-t border-zinc-800">
-                            <button onclick="applyTrackFilter()"
-                                class="w-full py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition">
-                                Apply Filter
-                            </button>
-                        </div>
+                    <!-- History/Stats View Dates -->
+                    <div id="dateFiltersHistory" class="hidden flex gap-2">
+                        <button id="btn3Days" onclick="setStatsDateFilter('3days')"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">3D</button>
+                        <button id="btn7Days" onclick="setStatsDateFilter('7days')"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">7D</button>
+                        <button id="btn90Days" onclick="setStatsDateFilter('90days')"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">90D</button>
+                        <button id="btnAllTime" onclick="setStatsDateFilter('all')"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">All</button>
                     </div>
                 </div>
 
-                <!-- Smart VALUE Filter -->
-                <div id="smartFilterWrapper" class="flex gap-2 border-l border-zinc-700 pl-4">
-                    <button id="btnSmartFilter" onclick="toggleSmartFilter()"
-                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 transition flex items-center gap-1">
-                        <span>💎</span> Value Only
-                    </button>
+                <!-- RIGHT: Global Filters (Country, Track, Value) -->
+                <!-- Always visible on the right side ("Same Spot") -->
+                <div class="flex items-center gap-2">
+
+                    <!-- 1. Smart VALUE Filter (First, as per user request) -->
+                    <div id="smartFilterWrapper" class="flex gap-2 border-r border-zinc-700 pr-2">
+                        <button id="btnSmartFilter" onclick="toggleSmartFilter()"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 transition flex items-center gap-1">
+                            <span class="text-blue-400">💎</span> Value Only
+                        </button>
+                    </div>
+
+                    <!-- 2. Country Filter -->
+                    <div class="flex items-center bg-zinc-800 rounded-full p-0.5 border border-zinc-700">
+                        <button id="btnCountryAll" onclick="setStatsCountryFilter('all')"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">All</button>
+                        <button id="btnCountryAU" onclick="setStatsCountryFilter('au')"
+                            class="px-3 py-1 rounded-full text-xs font-bold text-zinc-400 hover:text-white transition">AU</button>
+                        <button id="btnCountryNZ" onclick="setStatsCountryFilter('nz')"
+                            class="px-3 py-1 rounded-full text-xs font-bold text-zinc-400 hover:text-white transition">NZ</button>
+                    </div>
+
+                    <!-- 3. Runners Filter (Dropdown 2-8) -->
+                    <div class="relative">
+                        <button id="btnRunnersFilter" onclick="toggleRunnersFilterModal()"
+                            class="px-3 py-1.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition flex items-center gap-2">
+                            <span>🏃 Runners</span>
+                            <span id="runnersFilterCount"
+                                class="bg-zinc-700 text-white px-1.5 rounded text-[10px] hidden">0</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                stroke="currentColor" class="w-3 h-3">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </button>
+                        <!-- Runners Modal -->
+                        <div id="runnersFilterModal"
+                            class="hidden absolute right-0 top-full mt-2 w-32 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 p-2 flex flex-col">
+                            <div class="flex justify-between items-center mb-1 pb-1 border-b border-zinc-800">
+                                <span class="text-[10px] font-bold text-zinc-400">Field Size</span>
+                                <button onclick="toggleRunnersFilterModal()"
+                                    class="text-zinc-500 hover:text-white">✕</button>
+                            </div>
+                            <div class="flex justify-between mb-1">
+                                <button onclick="toggleAllRunners(true)"
+                                    class="text-[9px] bg-zinc-800 px-1.5 py-0.5 rounded hover:bg-zinc-700 text-zinc-300">All</button>
+                                <button onclick="toggleAllRunners(false)"
+                                    class="text-[9px] bg-zinc-800 px-1.5 py-0.5 rounded hover:bg-zinc-700 text-zinc-300">Clear</button>
+                            </div>
+                            <div id="runnersListContainer" class="space-y-0.5">
+                                <!-- Populated by JS -->
+                            </div>
+                            <div class="mt-2 pt-1 border-t border-zinc-800">
+                                <button onclick="applyRunnersFilter()"
+                                    class="w-full py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold transition">Apply</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Distance Filter (Dropdown) -->
+                    <div class="relative">
+                        <button id="btnDistanceFilter" onclick="toggleDistanceFilterModal()"
+                            class="px-3 py-1.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition flex items-center gap-2">
+                            <span>📏 Dist</span>
+                            <span id="distanceFilterCount"
+                                class="bg-zinc-700 text-white px-1.5 rounded text-[10px] hidden">0</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                stroke="currentColor" class="w-3 h-3">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </button>
+                        <!-- Distance Modal -->
+                        <div id="distanceFilterModal"
+                            class="hidden absolute right-0 top-full mt-2 w-40 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 p-2 flex flex-col">
+                            <div class="flex justify-between items-center mb-1 pb-1 border-b border-zinc-800">
+                                <span class="text-[10px] font-bold text-zinc-400">Distance</span>
+                                <button onclick="toggleDistanceFilterModal()"
+                                    class="text-zinc-500 hover:text-white">✕</button>
+                            </div>
+                            <div class="flex justify-between mb-1">
+                                <button onclick="toggleAllDistances(true)"
+                                    class="text-[9px] bg-zinc-800 px-1.5 py-0.5 rounded hover:bg-zinc-700 text-zinc-300">All</button>
+                                <button onclick="toggleAllDistances(false)"
+                                    class="text-[9px] bg-zinc-800 px-1.5 py-0.5 rounded hover:bg-zinc-700 text-zinc-300">Clear</button>
+                            </div>
+                            <div id="distanceListContainer" class="space-y-0.5">
+                                <!-- Populated by JS -->
+                            </div>
+                            <div class="mt-2 pt-1 border-t border-zinc-800">
+                                <button onclick="applyDistanceFilter()"
+                                    class="w-full py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold transition">Apply</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Track Filter Multi-Select -->
+                    <div class="relative">
+                        <button id="btnTrackFilter" onclick="toggleTrackFilterModal()"
+                            class="px-4 py-1.5 rounded-full text-xs font-bold bg-zinc-800 text-zinc-300 border border-zinc-700 hover:bg-zinc-700 transition flex items-center gap-2">
+                            <span>📍 Tracks</span>
+                            <span id="trackFilterCount"
+                                class="bg-zinc-700 text-white px-1.5 rounded text-[10px] hidden">0</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                stroke="currentColor" class="w-3 h-3">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </button>
+
+                        <!-- Track Filter Modal -->
+                        <div id="trackFilterModal"
+                            class="hidden absolute right-0 top-full mt-2 w-64 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 p-3 max-h-[60vh] flex flex-col">
+                            <div class="flex justify-between items-center mb-2 pb-2 border-b border-zinc-800">
+                                <span class="text-xs font-bold text-zinc-400">Select Tracks</span>
+                                <button onclick="toggleTrackFilterModal()"
+                                    class="text-zinc-500 hover:text-white">✕</button>
+                            </div>
+                            <!-- Search/Helpers -->
+                            <div class="flex gap-2 mb-2">
+                                <button onclick="toggleAllTracks(true)"
+                                    class="text-[10px] bg-zinc-800 px-2 py-1 rounded hover:bg-zinc-700 text-zinc-300">All</button>
+                                <button onclick="toggleAllTracks(false)"
+                                    class="text-[10px] bg-zinc-800 px-2 py-1 rounded hover:bg-zinc-700 text-zinc-300">Clear</button>
+                            </div>
+                            <!-- Checkbox List -->
+                            <div id="trackListContainer" class="overflow-y-auto flex-1 space-y-1 pr-1 custom-scrollbar">
+                            </div>
+                            <!-- Apply Button -->
+                            <div class="mt-3 pt-2 border-t border-zinc-800">
+                                <button onclick="applyTrackFilter()"
+                                    class="w-full py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition">Apply</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -645,7 +706,7 @@
         let cachedRaces = [];
         let currentView = 'upcoming'; // 'upcoming' or 'history'
         let currentDateFilter = 'all'; // 'all', 'today', or 'tomorrow'
-        let currentDistanceFilter = 'all'; // 'all', 'short', 'medium', 'long'
+        // currentDistanceFilter moved to Global Filter Logic
         let currentStatsDateFilter = '7days'; // Default to Last 7 Days
         let isSmartFilterActive = false; // "Value Finder" Toggle
         let currentStatsTrackFilter = new Set(); // Empty Set = All Tracks
@@ -1506,6 +1567,175 @@
 
         // --- Multi-Select Track Filter Logic ---
 
+        // --- Runners Filter Logic (Dropdown 2-8) ---
+        let currentRunnersFilter = new Set(); // Empty = All
+
+        function toggleRunnersFilterModal() {
+            const modal = document.getElementById('runnersFilterModal');
+            if (modal.classList.contains('hidden')) {
+                populateRunnersFilterModal();
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function populateRunnersFilterModal() {
+            const container = document.getElementById('runnersListContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const options = [2, 3, 4, 5, 6, 7, 8];
+            const currentSelection = currentRunnersFilter.size === 0 ? new Set(options) : currentRunnersFilter;
+
+            options.forEach(count => {
+                const label = document.createElement('label');
+                label.className = "flex items-center gap-2 p-1 hover:bg-zinc-800 rounded cursor-pointer text-[10px] text-zinc-300";
+
+                const checkbox = document.createElement('input');
+                checkbox.type = "checkbox";
+                checkbox.value = count;
+                checkbox.checked = currentSelection.has(count);
+                checkbox.className = "accent-blue-600 rounded bg-zinc-700 border-zinc-600 w-3 h-3";
+
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(count + " Runners"));
+                container.appendChild(label);
+            });
+            updateRunnersFilterCount();
+        }
+
+        function toggleAllRunners(select) {
+            const checkboxes = document.querySelectorAll('#runnersListContainer input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = select);
+        }
+
+        function applyRunnersFilter() {
+            const checkboxes = document.querySelectorAll('#runnersListContainer input[type="checkbox"]');
+            const newSelection = new Set();
+            let allUnchecked = true;
+
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    newSelection.add(parseInt(cb.value));
+                    allUnchecked = false;
+                }
+            });
+
+            if (allUnchecked) currentRunnersFilter.clear(); // Clear means All
+            else currentRunnersFilter = newSelection;
+
+            toggleRunnersFilterModal();
+            updateRunnersFilterCount();
+            if (currentView === 'stats') renderStats();
+            else renderRaces();
+        }
+
+        function updateRunnersFilterCount() {
+            const countSpan = document.getElementById('runnersFilterCount');
+            const btn = document.getElementById('btnRunnersFilter');
+
+            // If empty (All) or checks all options (2-8), treat as inactive
+            const isAll = currentRunnersFilter.size === 0 || currentRunnersFilter.size === 7;
+
+            if (!isAll) {
+                countSpan.textContent = currentRunnersFilter.size;
+                countSpan.classList.remove('hidden');
+                btn.classList.add('bg-blue-900/40', 'border-blue-500/50', 'text-blue-200');
+                btn.classList.remove('bg-zinc-800', 'text-zinc-300', 'border-zinc-700');
+            } else {
+                countSpan.classList.add('hidden');
+                btn.classList.remove('bg-blue-900/40', 'border-blue-500/50', 'text-blue-200');
+                btn.classList.add('bg-zinc-800', 'text-zinc-300', 'border-zinc-700');
+            }
+        }
+
+        // --- Distance Filter Logic (Sprint/Short/Mid/Long) ---
+        let currentDistanceFilter = new Set(); // Empty = All
+        const DISTANCE_CATS = [
+            { id: 'sprint', label: 'Sprint (<350m)', min: 0, max: 349 },
+            { id: 'short', label: 'Short (350-449m)', min: 350, max: 449 },
+            { id: 'mid', label: 'Mid (450-599m)', min: 450, max: 599 },
+            { id: 'long', label: 'Long (600m+)', min: 600, max: 9999 }
+        ];
+
+        function toggleDistanceFilterModal() {
+            const modal = document.getElementById('distanceFilterModal');
+            if (modal.classList.contains('hidden')) {
+                populateDistanceFilterModal();
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function populateDistanceFilterModal() {
+            const container = document.getElementById('distanceListContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const currentSelection = currentDistanceFilter.size === 0 ? new Set(DISTANCE_CATS.map(d => d.id)) : currentDistanceFilter;
+
+            DISTANCE_CATS.forEach(cat => {
+                const label = document.createElement('label');
+                label.className = "flex items-center gap-2 p-1 hover:bg-zinc-800 rounded cursor-pointer text-[10px] text-zinc-300";
+
+                const checkbox = document.createElement('input');
+                checkbox.type = "checkbox";
+                checkbox.value = cat.id;
+                checkbox.checked = currentSelection.has(cat.id);
+                checkbox.className = "accent-blue-600 rounded bg-zinc-700 border-zinc-600 w-3 h-3";
+
+                label.appendChild(checkbox);
+                label.appendChild(document.createTextNode(cat.label));
+                container.appendChild(label);
+            });
+            updateDistanceFilterCount();
+        }
+
+        function toggleAllDistances(select) {
+            const checkboxes = document.querySelectorAll('#distanceListContainer input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = select);
+        }
+
+        function applyDistanceFilter() {
+            const checkboxes = document.querySelectorAll('#distanceListContainer input[type="checkbox"]');
+            const newSelection = new Set();
+            let allUnchecked = true;
+
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    newSelection.add(cb.value);
+                    allUnchecked = false;
+                }
+            });
+
+            if (allUnchecked) currentDistanceFilter.clear();
+            else currentDistanceFilter = newSelection;
+
+            toggleDistanceFilterModal();
+            updateDistanceFilterCount();
+            if (currentView === 'stats') renderStats();
+            else renderRaces();
+        }
+
+        function updateDistanceFilterCount() {
+            const countSpan = document.getElementById('distanceFilterCount');
+            const btn = document.getElementById('btnDistanceFilter');
+            const isAll = currentDistanceFilter.size === 0 || currentDistanceFilter.size === 4;
+
+            if (!isAll) {
+                countSpan.textContent = currentDistanceFilter.size;
+                countSpan.classList.remove('hidden');
+                btn.classList.add('bg-blue-900/40', 'border-blue-500/50', 'text-blue-200');
+                btn.classList.remove('bg-zinc-800', 'text-zinc-300', 'border-zinc-700');
+            } else {
+                countSpan.classList.add('hidden');
+                btn.classList.remove('bg-blue-900/40', 'border-blue-500/50', 'text-blue-200');
+                btn.classList.add('bg-zinc-800', 'text-zinc-300', 'border-zinc-700');
+            }
+        }
+
         function toggleTrackFilterModal() {
             const modal = document.getElementById('trackFilterModal');
             modal.classList.toggle('hidden');
@@ -1974,6 +2204,24 @@
                     if (!currentStatsTrackFilter.has(race.meeting_name)) return false;
                 }
 
+                // 3. Runners Filter
+                if (currentRunnersFilter.size > 0 && !currentRunnersFilter.has(race.active_runner_count)) return false;
+
+                // 4. Distance Filter
+                if (currentDistanceFilter.size > 0) {
+                    const dist = race.distance_meters || 0;
+                    let match = false;
+                    // Check if dist falls into ANY selected category
+                    for (const catId of currentDistanceFilter) {
+                        const cat = DISTANCE_CATS.find(c => c.id === catId);
+                        if (cat && dist >= cat.min && dist <= cat.max) {
+                            match = true;
+                            break;
+                        }
+                    }
+                    if (!match) return false;
+                }
+
                 if (isSmartFilterActive) {
                     const activeRunners = (race.runners || []).filter(r => !r.is_scratched && r.sportsbet_odds > 0);
                     if (activeRunners.length < 2) return false; // Need at least 2 runners to have a "Top 2" market
@@ -2025,6 +2273,23 @@
                     const isNZ = NZ_TRACKS.has(race.meeting_name);
                     const country = isNZ ? 'nz' : 'au';
                     if (country !== currentStatsCountryFilter) return false;
+                }
+
+                // 3. Runners Filter
+                if (currentRunnersFilter.size > 0 && !currentRunnersFilter.has(race.active_runner_count)) return false;
+
+                // 4. Distance Filter
+                if (currentDistanceFilter.size > 0) {
+                    const dist = race.distance_meters || 0;
+                    let match = false;
+                    for (const catId of currentDistanceFilter) {
+                        const cat = DISTANCE_CATS.find(c => c.id === catId);
+                        if (cat && dist >= cat.min && dist <= cat.max) {
+                            match = true;
+                            break;
+                        }
+                    }
+                    if (!match) return false;
                 }
 
                 // Smart Filter (Value)

@@ -1,11 +1,6 @@
-"""
-One-time script to backfill race results for historical races.
-This scrapes results for races from the past N days.
-"""
-
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict
 from supabase import create_client
 
@@ -69,28 +64,43 @@ def backfill_results(days_back: int = 7):
             meeting_url = race.get('meeting_url')
             meeting_name = race['meeting_name']
             
-            # Extract date from race_time
-            # race_time is ISO string. Convert to local date YYYY-MM-DD
-            r_time_iso = race.get('race_time')
-            r_date_str = None
-            if r_time_iso:
-                try:
-                    dt = datetime.fromisoformat(r_time_iso.replace('Z', '+00:00'))
-                    # Convert to AEST (approx +11h) to match "meeting date" logic
-                    dt_local = dt.astimezone(timezone(timedelta(hours=11)))
-                    r_date_str = dt_local.strftime('%Y-%m-%d')
-                except:
-                    pass
-
-            # Skip if no meeting_url
-            if not meeting_url:
-                print(f"Warning: No meeting_url for {meeting_name}, skipping")
-                continue
+            # DEBUG
+            if skipped_fake_urls < 3:
+                print(f"DEBUG: {meeting_name} race_time={race.get('race_time')} url={meeting_url}")
             
+            # Extract date from race_time
+            race_date = None
+            try:
+                r_time_iso = race.get('race_time')
+                if r_time_iso:
+                    # Handle ISO format
+                    if r_time_iso.endswith('Z'):
+                        r_time_iso = r_time_iso.replace('Z', '+00:00')
+                    dt = datetime.fromisoformat(r_time_iso)
+                    dt_aest = dt.astimezone(AEST)
+                    race_date = dt_aest.strftime('%Y-%m-%d')
+            except Exception as e:
+                print(f"Warn: Date parse error for {meeting_name}: {e}")
+    
+            if not race_date:
+                print(f"Skipping {meeting_name} - No Date")
+                continue
+    
+            # CRITICAL: Do NOT scrape Future races.
+            today_str = datetime.now(AEST).strftime('%Y-%m-%d')
+            if race_date >= today_str:
+                 print(f"Skipping Future/Today Race: {meeting_name} on {race_date} (Today is {today_str})")
+                 continue
+    
+            # Skip if no URL or sportsbet
+            if not meeting_url or "sportsbet.com.au" in meeting_url:
+                skipped_fake_urls += 1
+                continue
+                
             if meeting_url not in meetings_to_scrape:
                 meetings_to_scrape[meeting_url] = {
                     'name': meeting_name,
-                    'date': r_date_str
+                    'date': race_date
                 }
         
         if skipped_fake_urls > 0:
@@ -110,9 +120,12 @@ def backfill_results(days_back: int = 7):
             print(f"[{idx}/{len(meetings_to_scrape)}] Scraping results for {meeting_name} ({meeting_date})...", flush=True)
             try:
                 results = scrape_meeting_results(meeting_url, meeting_name)
-                # Inject race_date into results
+                # Only inject race_date if missing? 
+                # Actually, let's trust the scraper's parsed date. 
+                # If scraper fails, THEN use meeting_date as fallback.
                 for r in results:
-                    r['race_date'] = meeting_date
+                    if not r.get('race_date'):
+                        r['race_date'] = meeting_date
                 
                 all_results.extend(results)
                 print(f"  -> Found {len(results)} race results", flush=True)

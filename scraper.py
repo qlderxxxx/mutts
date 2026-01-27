@@ -766,7 +766,8 @@ def update_race_results(race_results: Dict):
         # Find the race in database
         # There might be multiple races with same meeting_name/number (different dates)
         # Fix: Select race_time for validation logic
-        race_response = supabase.table('races').select('id, race_time').eq('meeting_name', meeting_name).eq('race_number', race_number).order('race_time', desc=True).execute()
+        client = get_supabase()
+        race_response = client.table('races').select('id, race_time').eq('meeting_name', meeting_name).eq('race_number', race_number).order('race_time', desc=True).execute()
         
         if not race_response.data:
             print(f"Race not found in DB: {meeting_name} R{race_number}")
@@ -796,41 +797,25 @@ def update_race_results(race_results: Dict):
                     if r_time_val > current_time_utc + timedelta(hours=6):
                         continue
                         
+                    valid_candidates.append(cand) # Validation passed
+                        
                 except:
                      valid_candidates.append(cand) # Validation failed, keep it safe
         
-        # New Strict Filter: If race_results has a 'race_date', enforce it.
-        # This is critical for backfilling to ensure we don't accidentally pick a future race
-        # when a specific historical race was scraped.
-        target_date_str = race_results.get('race_date')
-        if target_date_str and valid_candidates:
-            try:
-                # Target format YYYY-MM-DD
-                target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
-                filtered_by_date = []
-                for cand in valid_candidates:
-                    c_time_str = cand.get('race_time')
-                    if c_time_str:
-                        # Parse candidate date
-                        c_dt = datetime.fromisoformat(c_time_str.replace('Z', '+00:00'))
-                        # Convert to local/date. We compare dates.
-                        # Note: race_time in DB is UTC. target_date derived from "2026-01-20".
-                        # We allow a slight mismatch due to timezone but generally should match the "day".
-                        # Effectively: timestamp date matches target date.
-                        # Converting strict UTC->Date might be off by 1 day if late at night?
-                        # Let's map UTC to AEST (approx +10/11) to get the "meeting date".
-                        c_aest = c_dt.astimezone(timezone(timedelta(hours=11))) # AEST/AEDT approx
-                        if c_aest.date() == target_date:
+                        # Relaxed Match: Allow +/- 1 day difference to handle Timezone edge cases (NZ vs AEST vs UTC)
+                        diff = (c_aest.date() - target_date).days
+                        match = abs(diff) <= 1
+                        
+                        if match:
                             filtered_by_date.append(cand)
                 
                 if filtered_by_date:
                     valid_candidates = filtered_by_date
-                    # print(f"    [Date Filter] Narrowed to {len(valid_candidates)} races matching {target_date}")
             except Exception as e:
                 print(f"    [Date Filter Error] {e}")
 
         if not valid_candidates:
-             print(f"No valid past/current races found for {meeting_name} R{race_number} (Candidates were future?)")
+             print(f"No valid past/current races found for {meeting_name} R{race_number} (Candidates were future?) [DEBUG: target_date={target_date_str}]")
              return
 
         candidates = valid_candidates
@@ -849,7 +834,7 @@ def update_race_results(race_results: Dict):
                 for cand in candidates:
                     cid = cand['id']
                     # Check if test dog exists in this race
-                    check = supabase.table('runners').select('id').eq('race_id', cid).ilike('dog_name', test_runner['dog_name']).execute()
+                    check = client.table('runners').select('id').eq('race_id', cid).ilike('dog_name', test_runner['dog_name']).execute()
                     if check.data:
                         race_id = cid
                         # print(f"    Matched race ID {race_id} for {meeting_name} R{race_number} using dog {test_runner['dog_name']}", flush=True)
@@ -865,12 +850,12 @@ def update_race_results(race_results: Dict):
         for result in results:
             # Find runner by race_id, dog_name, and box_number
             # Use ilike for case-insensitive matching (Results often UPPERCASE, Fields often Title Case)
-            runner_response = supabase.table('runners').select('id').eq('race_id', race_id).ilike('dog_name', result['dog_name']).eq('box_number', result['box_number']).execute()
+            runner_response = client.table('runners').select('id').eq('race_id', race_id).ilike('dog_name', result['dog_name']).eq('box_number', result['box_number']).execute()
             
             if runner_response.data:
                 runner_id = runner_response.data[0]['id']
                 # print(f"    Updating runner {result['dog_name']}...", flush=True)
-                supabase.table('runners').update({
+                client.table('runners').update({
                     'starting_price': result['starting_price'],
                     'finishing_position': result['finishing_position']
                 }).eq('id', runner_id).execute()
@@ -892,7 +877,7 @@ def update_race_results(race_results: Dict):
                 top_2_in_top_2 = top_2_favorites == top_2_finishers
                 
                 # Update race with Top 2 in Top 2 and status
-                supabase.table('races').update({
+                client.table('races').update({
                     'top_2_in_top_2': top_2_in_top_2,
                     'status': 'resulted'
                 }).eq('id', race_id).execute()
@@ -903,7 +888,7 @@ def update_race_results(race_results: Dict):
             # We still mark as resulted so it doesn't stay 'upcoming', but top_2_in_top_2 remains null
             # This ensures it doesn't skew stats but shows we attempted to result it
             # User Request: "Resulted - No SPs" specific status
-            supabase.table('races').update({
+            client.table('races').update({
                 'status': 'Resulted - No SPs'
             }).eq('id', race_id).execute()
             print(f"Updated results: {meeting_name} R{race_number} - Resulted - No SPs (skipped Top 2 calc)")
