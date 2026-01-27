@@ -1529,22 +1529,32 @@
             });
         }
 
-        // Format date label (Today/Tomorrow)
-        function formatDateLabel(raceTime) {
+        // Format date label (Top 2 Opp needs date only, Upcoming needs Today/Time)
+        // User Request: History date format shorter (DD/MM/YY), no time for resulted.
+        function formatDateLabel(raceTime, isResulted = false) {
             if (!raceTime) return '';
-            // Convert to local date string (YYYY-MM-DD)
             const raceDate = new Date(raceTime);
-            const dateStr = raceDate.toLocaleDateString('en-CA');
 
+            // Format: DD/MM/YY
+            const day = raceDate.getDate().toString().padStart(2, '0');
+            const month = (raceDate.getMonth() + 1).toString().padStart(2, '0');
+            const yearStr = raceDate.getFullYear().toString().slice(-2);
+            const shortDateStr = `${day}/${month}/${yearStr}`;
+
+            // If resulted, just return date (no time)
+            if (isResulted) {
+                return shortDateStr;
+            }
+
+            // For upcoming/active, use Today/Tomorrow Logic
+            const dateStr = raceDate.toLocaleDateString('en-CA');
             const now = new Date();
             const today = now.toLocaleDateString('en-CA');
-
-            // Calculate tomorrow
             const tmr = new Date(now);
             tmr.setDate(tmr.getDate() + 1);
             const tomorrow = tmr.toLocaleDateString('en-CA');
 
-            let label = dateStr;
+            let label = shortDateStr;
             if (dateStr === today) {
                 label = 'Today';
             } else if (dateStr === tomorrow) {
@@ -1552,15 +1562,6 @@
             }
 
             // Append Time if not 00:00 (Midnight)
-            // Legacy data is store as YYYY-MM-DDT00:00:00Z (which converts to local time, likely not 00:00 depending on TZ)
-            // Wait, legacy backfill explicitly set time to "date", so it parses as 00:00 UTC? or Local?
-            // The user said "when the time is 00:00".
-            // Let's check hours and minutes strictly.
-            // If hours === 0 && minutes === 0, skip.
-            // CAREFUL: 12:00 AM (Midnight) is a valid time for a race, but highly unlikely for greyhounds?
-            // Usually races are 8 AM to 11 PM. Midnight racing is rare. 
-            // Better check: If valid, format it.
-
             const hours = raceDate.getHours();
             const minutes = raceDate.getMinutes();
 
@@ -1663,7 +1664,7 @@
         // Create race card HTML
         function createRaceCard(race, runners, isBlueOpp = false) {
             const isMicroField = race.active_runner_count === 4;
-            const isResulted = race.status === 'resulted' || (race.top_2_in_top_2 !== null);
+            const isResulted = (race.status === 'resulted' || race.status === 'Resulted - No SPs') || (race.top_2_in_top_2 !== null);
 
             const cardClass = isMicroField ? 'micro-field-card' : 'opportunity-card';
             // Badge text is now just the runner count
@@ -1768,7 +1769,7 @@
                         </div>
                         <div class="text-right pl-1 flex-shrink-0 flex items-center gap-2">
                             <div class="text-xs font-bold whitespace-nowrap opacity-75">
-                                ${formatDateLabel(race.race_time)}
+                                ${formatDateLabel(race.race_time, isResulted)}
                             </div>
                             ${resultedLabel}
                         </div>

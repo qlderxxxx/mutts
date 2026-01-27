@@ -97,12 +97,13 @@ def scrape_meeting_results_new(meeting_url: str, meeting_name: str) -> List[Dict
                     if table:
                         race_data = parse_result_table(table, meeting_name, int(race_num))
                         if race_data:
-                            if not all_sps_zero(race_data):
-                                all_races_have_zero_sp = False
-                                results.append(race_data)
-                                print(f"    -> Scraped {len(race_data['results'])} runners")
-                            else:
-                                print(f"    -> Race {race_num} has all $0 SPs, skipping")
+                            # Allow races with $0 SPs (User Request: "Resulted - No SPs")
+                            # if not all_sps_zero(race_data):
+                            all_races_have_zero_sp = False # Treat as valid
+                            results.append(race_data)
+                            print(f"    -> Scraped {len(race_data['results'])} runners")
+                            if all_sps_zero(race_data):
+                                print(f"    -> Note: Race {race_num} has all $0 SPs (Runners found)")
                 
                 except Exception as e:
                     print(f"  Error scraping race {i+1}: {e}")

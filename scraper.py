@@ -544,7 +544,8 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
             header_text = header_elem.get_text(separator=' ', strip=True) # Use separator to avoid mashing
             
             # Extract race number
-            race_match = re.search(r'Race\s+(\d+)', header_text)
+            # Fix: Limit to 1-2 digits to avoid grabbing year (e.g. "Race 6 2025" -> 62025)
+            race_match = re.search(r'Race\s+(\d{1,2})\b', header_text, re.IGNORECASE)
             if not race_match:
                 continue
             
@@ -871,10 +872,11 @@ def update_race_results(race_results: Dict):
             # Handle case where we have results but valid SPs are missing (e.g. all $0)
             # We still mark as resulted so it doesn't stay 'upcoming', but top_2_in_top_2 remains null
             # This ensures it doesn't skew stats but shows we attempted to result it
+            # User Request: "Resulted - No SPs" specific status
             supabase.table('races').update({
-                'status': 'resulted'
+                'status': 'Resulted - No SPs'
             }).eq('id', race_id).execute()
-            print(f"Updated results: {meeting_name} R{race_number} - Resulted but invalid SP comparison (skipped Top 2 calc)")
+            print(f"Updated results: {meeting_name} R{race_number} - Resulted - No SPs (skipped Top 2 calc)")
         
     except Exception as e:
         print(f"Error updating race results: {e}")

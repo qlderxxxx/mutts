@@ -14,11 +14,13 @@ from scraper import update_race_results, AEST
 from new_results_scraper import scrape_meeting_results_new as scrape_meeting_results
 
 # Supabase credentials
+# Supabase credentials
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("SUPABASE_URL and SUPABASE_KEY environment variables must be set")
+if not SUPABASE_URL:
+    SUPABASE_URL = 'https://yvnkyakuamvahtiwbneq.supabase.co'
+    SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2bmt5YWt1YW12YWh0aXdibmVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5Mzg4MTQsImV4cCI6MjA4NDUxNDgxNH0.-v9LyyRgX2tj9EFCImHo44XxSQcZ4_GmQZw-q7ZTX5I'
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
