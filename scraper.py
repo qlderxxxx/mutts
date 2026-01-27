@@ -767,55 +767,28 @@ def update_race_results(race_results: Dict):
         # There might be multiple races with same meeting_name/number (different dates)
         # Fix: Select race_time for validation logic
         client = get_supabase()
-        race_response = client.table('races').select('id, race_time').eq('meeting_name', meeting_name).eq('race_number', race_number).order('race_time', desc=True).execute()
+        target_url = race_results.get('meeting_url')
         
-        if not race_response.data:
-            print(f"Race not found in DB: {meeting_name} R{race_number}")
-            return
-            
-        # Filter candidates: Exclude races that are clearly in the future (e.g. > 12 hours away)
-        # Results can't exist for a race that hasn't run.
-        # Use a safe buffer (e.g. now + 4 hours) in case of timezone drifts, but definitely exclude tomorrow's races.
-        current_time_utc = datetime.now(timezone.utc)
-        
+        # CASE 1: EXACT MATCH BY URL (Preferred/Robust)
         valid_candidates = []
-        for cand in race_response.data:
-            r_time_str = cand.get('race_time')
-            if r_time_str:
-                # Parse ISO string
-                try:
-                    # Handle both Z and +00:00
-                    r_time_val = datetime.fromisoformat(r_time_str.replace('Z', '+00:00'))
-                    # Normalize to UTC
-                    if r_time_val.tzinfo is None:
-                        r_time_val = r_time_val.replace(tzinfo=timezone.utc)
-                    else:
-                        r_time_val = r_time_val.astimezone(timezone.utc)
-                    
-                    # If race is more than 6 hours in the future, skip it
-                    # (Allowing a small window for "Upcoming" becoming "Resulted" while Live)
-                    if r_time_val > current_time_utc + timedelta(hours=6):
-                        continue
-                        
-                    valid_candidates.append(cand) # Validation passed
-                        
-                except:
-                     valid_candidates.append(cand) # Validation failed, keep it safe
-        
-                        # Relaxed Match: Allow +/- 1 day difference to handle Timezone edge cases (NZ vs AEST vs UTC)
-                        diff = (c_aest.date() - target_date).days
-                        match = abs(diff) <= 1
-                        
-                        if match:
-                            filtered_by_date.append(cand)
-                
-                if filtered_by_date:
-                    valid_candidates = filtered_by_date
-            except Exception as e:
-                print(f"    [Date Filter Error] {e}")
+        if target_url:
+            race_response = client.table('races').select('id, race_time, status').eq('meeting_url', target_url).eq('race_number', race_number).execute()
+            if race_response.data:
+                valid_candidates = race_response.data
+            else:
+                match = re.search(r'/(\d+)/?$', target_url)
+                if match:
+                    race_id_segment = match.group(1)
+                    race_response = client.table('races').select('id, race_time, status').ilike('meeting_url', f'%/{race_id_segment}/%').eq('race_number', race_number).execute()
+                    valid_candidates = race_response.data
 
+        # CASE 2: FALLBACK TO DATE/NAME (Legacy/Manual)
         if not valid_candidates:
-             print(f"No valid past/current races found for {meeting_name} R{race_number} (Candidates were future?) [DEBUG: target_date={target_date_str}]")
+            race_response = client.table('races').select('id, race_time').eq('meeting_name', meeting_name).eq('race_number', race_number).order('race_time', desc=True).execute()
+            valid_candidates = race_response.data or []
+        
+        if not valid_candidates:
+             print(f"Race not found in DB: {meeting_name} R{race_number} (URL: {target_url})")
              return
 
         candidates = valid_candidates

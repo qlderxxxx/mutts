@@ -745,8 +745,13 @@
                 if (racesContainer) racesContainer.classList.add('hidden');
 
                 // Hide Upcoming Date Filters, Show Stats Date Filters
-                if (filtersContainer) filtersContainer.style.display = 'none';
-                if (statsFiltersContainer) statsFiltersContainer.classList.remove('hidden');
+                if (filtersContainer) filtersContainer.style.display = 'none'; // Legacy container?
+
+                // Unified Filter Bar Toggles
+                document.getElementById('dateFiltersUpcoming').classList.add('hidden');
+                document.getElementById('dateFiltersHistory').classList.remove('hidden');
+
+                if (statsFiltersContainer) statsFiltersContainer.classList.remove('hidden'); // Legacy?
 
                 if (filterContextTitle) filterContextTitle.classList.remove('hidden');
                 if (statsUpcoming) statsUpcoming.classList.add('hidden');
@@ -760,6 +765,11 @@
 
                 if (mode === 'upcoming') {
                     if (filtersContainer) filtersContainer.style.display = 'flex';
+
+                    // Unified Filter Bar Toggles
+                    document.getElementById('dateFiltersUpcoming').classList.remove('hidden');
+                    document.getElementById('dateFiltersHistory').classList.add('hidden');
+
                     if (statsFiltersContainer) statsFiltersContainer.classList.add('hidden');
                     if (filterContextTitle) filterContextTitle.classList.add('hidden');
                     if (statsUpcoming) statsUpcoming.classList.remove('hidden');
@@ -768,6 +778,11 @@
                 } else {
                     // History
                     if (filtersContainer) filtersContainer.style.display = 'none';
+
+                    // Unified Filter Bar Toggles
+                    document.getElementById('dateFiltersUpcoming').classList.add('hidden');
+                    document.getElementById('dateFiltersHistory').classList.remove('hidden');
+
                     if (statsFiltersContainer) statsFiltersContainer.classList.remove('hidden');
                     if (filterContextTitle) filterContextTitle.classList.remove('hidden');
                     if (statsUpcoming) statsUpcoming.classList.add('hidden');

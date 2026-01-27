@@ -124,6 +124,7 @@ def backfill_results(days_back: int = 7):
                 # Actually, let's trust the scraper's parsed date. 
                 # If scraper fails, THEN use meeting_date as fallback.
                 for r in results:
+                    r['meeting_url'] = meeting_url # CRITICAL: Use this for exact DB matching
                     if not r.get('race_date'):
                         r['race_date'] = meeting_date
                 
