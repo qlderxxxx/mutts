@@ -1950,8 +1950,17 @@
                 }
 
                 // Filter by Track (History View Cross-Filtering - Multi-Select)
-                if (currentView === 'history' && currentStatsTrackFilter.size > 0) {
-                    if (!currentStatsTrackFilter.has(race.meeting_name)) return false;
+                if (currentView === 'history') {
+                    if (currentStatsTrackFilter.size > 0) {
+                        if (!currentStatsTrackFilter.has(race.meeting_name)) return false;
+                    }
+
+                    // Apply Country Filter
+                    if (currentStatsCountryFilter !== 'all') {
+                        const isNZ = NZ_TRACKS.has(race.meeting_name);
+                        const country = isNZ ? 'nz' : 'au';
+                        if (country !== currentStatsCountryFilter) return false;
+                    }
                 }
 
                 return true;
