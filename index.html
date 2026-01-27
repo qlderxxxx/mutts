@@ -1602,11 +1602,35 @@
             const odds1 = getOdds(runnersWithOdds[0]);
             const odds2 = getOdds(runnersWithOdds[1]);
             // If there are more than 2 runners, check the rest. 
-            // If only 2 runners (unlikely given count check), conditions on "rest" are vacuously true? 
-            // The logic implies we want a gap to the "field".
-            // Let's assume we check runner 3 (index 2) onwards.
             const rest = runnersWithOdds.slice(2);
 
+            // 5. Strict Logic: NO market leaders in Box 7 (Graveyard box)
+            // Analysis (Jan 2026) shows Box 5 performs well (44% SR), so we UN-BAN Box 5.
+            // Box 7 is still poor (~23%), so we keep it banned.
+            // To implement this, we need to find the odds for Box 7.
+            // This requires iterating through runnersWithOdds and finding the one with box_number 7.
+            const box7Runner = runnersWithOdds.find(r => r.box_number === 7);
+            const odds7 = box7Runner ? getOdds(box7Runner) : null;
+
+            // If Box 7 exists and its odds are short (<= $4.00), it's a risk.
+            // This is a negative filter, so if it's a risk, we return false immediately.
+            if (odds7 !== null && odds7 <= 4.0) return false;
+
+            // 6. Strategy 1: The "Sure Thing"
+            // 1st Fav is < $2.00
+            // AND we have a small field (<= 5 runners)
+            // AND distance > 350m (Short races are volatile)
+            const stratSureThingMatch = (odds1 < 2.00) &&
+                (race.active_runner_count <= 5) &&
+                (race.distance_meters > 350);
+            if (stratSureThingMatch) return true;
+
+            // --- Strategy 3: "Back the Red Plus" (Refined) ---
+            // 1. 1st Fav is in Box 1 AND Odds < $2.50 (Strong Lead)
+            // 2. 2nd Fav is also solid (< $3.50) to ensure we have a likely Top 2 pair.
+            if (runnersWithOdds[0].box_number === 1 && odds1 < 2.50 && odds2 < 3.50) {
+                return true;
+            }
             // --- Strategy 1: The "Two Shorties" (Original) ---
             // 2 runners < $3.00
             // The rest >= $8.00
