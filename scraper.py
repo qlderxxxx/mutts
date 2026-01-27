@@ -541,7 +541,7 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
             if not header_elem:
                 continue
             
-            header_text = header_elem.get_text(strip=True)
+            header_text = header_elem.get_text(separator=' ', strip=True) # Use separator to avoid mashing
             
             # Extract race number
             race_match = re.search(r'Race\s+(\d+)', header_text)
@@ -549,6 +549,43 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
                 continue
             
             race_number = int(race_match.group(1))
+
+            # Extract Race Time (e.g. 8:45PM)
+            # Text might be "Race 1... 8:45PM (AEST)"
+            # User confirms site times are "accurate to my timezone" (Sydney AEDT)
+            # So we treat the digits as Sydney Local Time (+11:00 in Summer, +10:00 Winter)
+            # Currently Jan = Summer = +11:00
+            full_race_time_iso = race_date # Default fallback
+            
+            # Robust Regex: Match time with optional space before AM/PM
+            time_match = re.search(r'(\d{1,2}:\d{2})\s?(:?AM|PM)', header_text, re.IGNORECASE)
+            
+            if time_match:
+                time_str = time_match.group(1)
+                meridiem = time_match.group(2).upper()
+                
+                # Parse hour/minute
+                dt = datetime.strptime(f"{time_str} {meridiem}", "%I:%M %p")
+                
+                # Combine with date
+                year, month, day = map(int, race_date.split('-'))
+                full_dt = dt.replace(year=year, month=month, day=day)
+                
+                # Handle 12-hour wrap around (If race is early AM next day?)
+                # Unlikely for greyhounds (usually PM), but if we parse 12:15 AM
+                # and the race date was the previous day... logic gets complex.
+                # Assuming race_date from Title applies to the whole meeting.
+                
+                # FORCE Timezone to Sydney (AEDT +11:00)
+                # Regardless of what the text says (AEST/AEDT)
+                tz_offset = timezone(timedelta(hours=11)) 
+                
+                full_dt = full_dt.replace(tzinfo=tz_offset)
+                full_race_time_iso = full_dt.isoformat()
+                
+                print(f"  DEBUG: Parsed time {time_str} {meridiem} -> {full_race_time_iso} (Forced AEDT)")
+            else:
+                 print(f"  WARNING: No time found in header: '{header_text}'")
 
             # Extract distance (Safe Regex: 200m - 999m)
             # Try multiple sources (header matching often fails for upcoming events)
@@ -591,7 +628,7 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
                 'meeting_name': meeting_name,
                 'meeting_url': meeting_url,  # Store URL for later results scraping
                 'race_number': race_number,
-                'race_time': race_date,  # Simple date string YYYY-MM-DD
+                'race_time': full_race_time_iso,  # Use parsed time with timezone
                 'distance_meters': distance_meters,
                 'status': 'upcoming',
                 'active_runner_count': active_count,
