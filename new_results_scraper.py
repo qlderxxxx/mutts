@@ -182,6 +182,7 @@ def parse_result_table(table, meeting_name: str, race_number: int) -> Dict:
             return {
                 'meeting_name': meeting_name,
                 'race_number': race_number,
+                'race_date': None, # Will be populated by caller or if passed
                 'results': race_results
             }
     

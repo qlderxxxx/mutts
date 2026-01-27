@@ -796,10 +796,39 @@ def update_race_results(race_results: Dict):
                     if r_time_val > current_time_utc + timedelta(hours=6):
                         continue
                         
-                    valid_candidates.append(cand)
                 except:
                      valid_candidates.append(cand) # Validation failed, keep it safe
         
+        # New Strict Filter: If race_results has a 'race_date', enforce it.
+        # This is critical for backfilling to ensure we don't accidentally pick a future race
+        # when a specific historical race was scraped.
+        target_date_str = race_results.get('race_date')
+        if target_date_str and valid_candidates:
+            try:
+                # Target format YYYY-MM-DD
+                target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+                filtered_by_date = []
+                for cand in valid_candidates:
+                    c_time_str = cand.get('race_time')
+                    if c_time_str:
+                        # Parse candidate date
+                        c_dt = datetime.fromisoformat(c_time_str.replace('Z', '+00:00'))
+                        # Convert to local/date. We compare dates.
+                        # Note: race_time in DB is UTC. target_date derived from "2026-01-20".
+                        # We allow a slight mismatch due to timezone but generally should match the "day".
+                        # Effectively: timestamp date matches target date.
+                        # Converting strict UTC->Date might be off by 1 day if late at night?
+                        # Let's map UTC to AEST (approx +10/11) to get the "meeting date".
+                        c_aest = c_dt.astimezone(timezone(timedelta(hours=11))) # AEST/AEDT approx
+                        if c_aest.date() == target_date:
+                            filtered_by_date.append(cand)
+                
+                if filtered_by_date:
+                    valid_candidates = filtered_by_date
+                    # print(f"    [Date Filter] Narrowed to {len(valid_candidates)} races matching {target_date}")
+            except Exception as e:
+                print(f"    [Date Filter Error] {e}")
+
         if not valid_candidates:
              print(f"No valid past/current races found for {meeting_name} R{race_number} (Candidates were future?)")
              return

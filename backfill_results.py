@@ -61,6 +61,7 @@ def backfill_results(days_back: int = 7):
             return
         
         # Group by meeting_url to avoid duplicate scrapes
+        # Store metadata: {url: {'name': name, 'date': date_str}}
         meetings_to_scrape = {}
         skipped_fake_urls = 0
         
@@ -68,22 +69,29 @@ def backfill_results(days_back: int = 7):
             meeting_url = race.get('meeting_url')
             meeting_name = race['meeting_name']
             
+            # Extract date from race_time
+            # race_time is ISO string. Convert to local date YYYY-MM-DD
+            r_time_iso = race.get('race_time')
+            r_date_str = None
+            if r_time_iso:
+                try:
+                    dt = datetime.fromisoformat(r_time_iso.replace('Z', '+00:00'))
+                    # Convert to AEST (approx +11h) to match "meeting date" logic
+                    dt_local = dt.astimezone(timezone(timedelta(hours=11)))
+                    r_date_str = dt_local.strftime('%Y-%m-%d')
+                except:
+                    pass
+
             # Skip if no meeting_url
             if not meeting_url:
                 print(f"Warning: No meeting_url for {meeting_name}, skipping")
                 continue
             
-            # Skip fake URLs that were constructed from dates (format: /fields/DDMMYY/)
-            # Real URLs from the website have unique IDs like /fields/250176/
-            # Fake URLs look like /fields/220126/ (22 Jan 2026 = 220126)
-            # Skip fake URLs that were constructed from dates (format: /fields/DDMMYY/)
-            # Real URLs from the website have unique IDs like /fields/250176/
-            # Fake URLs look like /fields/220126/ (22 Jan 2026 = 220126)
-            # UPDATE: Removed heuristic check as it was flagging real IDs (e.g. 250239) as dates
-            # trusting DB URLs now per user instruction.
-            
             if meeting_url not in meetings_to_scrape:
-                meetings_to_scrape[meeting_url] = meeting_name
+                meetings_to_scrape[meeting_url] = {
+                    'name': meeting_name,
+                    'date': r_date_str
+                }
         
         if skipped_fake_urls > 0:
             print(f"Skipped {skipped_fake_urls} races with fake date-based URLs")
@@ -96,10 +104,16 @@ def backfill_results(days_back: int = 7):
         
         # Scrape results for each meeting
         all_results = []
-        for idx, (meeting_url, meeting_name) in enumerate(meetings_to_scrape.items(), 1):
-            print(f"[{idx}/{len(meetings_to_scrape)}] Scraping results for {meeting_name}...", flush=True)
+        for idx, (meeting_url, meta) in enumerate(meetings_to_scrape.items(), 1):
+            meeting_name = meta['name']
+            meeting_date = meta['date']
+            print(f"[{idx}/{len(meetings_to_scrape)}] Scraping results for {meeting_name} ({meeting_date})...", flush=True)
             try:
                 results = scrape_meeting_results(meeting_url, meeting_name)
+                # Inject race_date into results
+                for r in results:
+                    r['race_date'] = meeting_date
+                
                 all_results.extend(results)
                 print(f"  -> Found {len(results)} race results", flush=True)
             except Exception as e:
@@ -113,7 +127,8 @@ def backfill_results(days_back: int = 7):
         for idx, race_results in enumerate(all_results, 1):
             meeting_name = race_results['meeting_name']
             race_number = race_results['race_number']
-            print(f"[{idx}/{len(all_results)}] Updating {meeting_name} R{race_number}...")
+            r_date = race_results.get('race_date', 'Unknown')
+            print(f"[{idx}/{len(all_results)}] Updating {meeting_name} R{race_number} ({r_date})...")
             update_race_results(race_results)
         
         print(f"\n{'='*60}")
