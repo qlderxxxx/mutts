@@ -770,7 +770,39 @@ def update_race_results(race_results: Dict):
             print(f"Race not found in DB: {meeting_name} R{race_number}")
             return
             
-        candidates = race_response.data
+        # Filter candidates: Exclude races that are clearly in the future (e.g. > 12 hours away)
+        # Results can't exist for a race that hasn't run.
+        # Use a safe buffer (e.g. now + 4 hours) in case of timezone drifts, but definitely exclude tomorrow's races.
+        current_time_utc = datetime.now(timezone.utc)
+        
+        valid_candidates = []
+        for cand in race_response.data:
+            r_time_str = cand.get('race_time')
+            if r_time_str:
+                # Parse ISO string
+                try:
+                    # Handle both Z and +00:00
+                    r_time_val = datetime.fromisoformat(r_time_str.replace('Z', '+00:00'))
+                    # Normalize to UTC
+                    if r_time_val.tzinfo is None:
+                        r_time_val = r_time_val.replace(tzinfo=timezone.utc)
+                    else:
+                        r_time_val = r_time_val.astimezone(timezone.utc)
+                    
+                    # If race is more than 6 hours in the future, skip it
+                    # (Allowing a small window for "Upcoming" becoming "Resulted" while Live)
+                    if r_time_val > current_time_utc + timedelta(hours=6):
+                        continue
+                        
+                    valid_candidates.append(cand)
+                except:
+                     valid_candidates.append(cand) # Validation failed, keep it safe
+        
+        if not valid_candidates:
+             print(f"No valid past/current races found for {meeting_name} R{race_number} (Candidates were future?)")
+             return
+
+        candidates = valid_candidates
         race_id = None
         
         # If only one, use it
