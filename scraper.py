@@ -765,7 +765,8 @@ def update_race_results(race_results: Dict):
         
         # Find the race in database
         # There might be multiple races with same meeting_name/number (different dates)
-        race_response = supabase.table('races').select('id').eq('meeting_name', meeting_name).eq('race_number', race_number).order('race_time', desc=True).execute()
+        # Fix: Select race_time for validation logic
+        race_response = supabase.table('races').select('id, race_time').eq('meeting_name', meeting_name).eq('race_number', race_number).order('race_time', desc=True).execute()
         
         if not race_response.data:
             print(f"Race not found in DB: {meeting_name} R{race_number}")
