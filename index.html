@@ -1494,7 +1494,12 @@
             } else {
                 btn.className = "px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 transition flex items-center gap-1";
             }
-            renderRaces();
+
+            if (currentView === 'stats') {
+                renderStats();
+            } else {
+                renderRaces();
+            }
         }
 
         function populateTrackDropdown(races) {
@@ -2423,6 +2428,46 @@
                         const isNZ = NZ_TRACKS.has(race.meeting_name);
                         const country = isNZ ? 'nz' : 'au';
                         if (country !== currentStatsCountryFilter) return false;
+                    }
+
+                    // 3. Runners Filter
+                    if (currentRunnersFilter.size > 0 && !currentRunnersFilter.has(race.active_runner_count)) return false;
+
+                    // 4. Distance Filter
+                    if (currentDistanceFilter.size > 0) {
+                        const dist = race.distance_meters || 0;
+                        let match = false;
+                        for (const catId of currentDistanceFilter) {
+                            const cat = DISTANCE_CATS.find(c => c.id === catId);
+                            if (cat && dist >= cat.min && dist <= cat.max) {
+                                match = true;
+                                break;
+                            }
+                        }
+                        if (!match) return false;
+                    }
+
+                    // Smart Filter (Value)
+                    if (isSmartFilterActive) {
+                        const activeRunners = (race.runners || []).filter(r => !r.is_scratched && r.sportsbet_odds > 0);
+                        if (activeRunners.length < 2) return false;
+
+                        activeRunners.sort((a, b) => a.sportsbet_odds - b.sportsbet_odds);
+                        const fav1 = activeRunners[0];
+                        const fav2 = activeRunners[1];
+
+                        if (fav1.sportsbet_odds >= 2.00) return false;
+
+                        const isSmallField = race.active_runner_count <= 6;
+                        const isBlueOpp = isRaceBlueOpp(race);
+                        if (!isSmallField && !isBlueOpp) return false;
+
+                        const dist = race.distance_meters || 0;
+                        if (dist < 350) return false;
+
+                        const badBoxes = [5, 7];
+                        if (badBoxes.includes(fav1.box_number)) return false;
+                        if (badBoxes.includes(fav2.box_number)) return false;
                     }
 
                     return true;
