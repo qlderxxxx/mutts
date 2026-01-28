@@ -823,7 +823,6 @@
                     if (rDate < cutoffDate) return false;
                 }
                 return true;
-                return true;
             });
 
 
@@ -2167,6 +2166,7 @@
                 cutoff.setHours(0, 0, 0, 0);
                 if (currentStatsDateFilter === '3days') cutoff.setDate(cutoff.getDate() - 3);
                 else if (currentStatsDateFilter === '7days') cutoff.setDate(cutoff.getDate() - 7);
+                else if (currentStatsDateFilter === '30days') cutoff.setDate(cutoff.getDate() - 30);
                 else if (currentStatsDateFilter === '90days') cutoff.setDate(cutoff.getDate() - 90);
                 historyCutoffTime = cutoff.getTime();
             }
