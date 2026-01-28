@@ -214,6 +214,8 @@
                             class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">3D</button>
                         <button id="btn7Days" onclick="setStatsDateFilter('7days')"
                             class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">7D</button>
+                        <button id="btn30Days" onclick="setStatsDateFilter('30days')"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">30D</button>
                         <button id="btn90Days" onclick="setStatsDateFilter('90days')"
                             class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">90D</button>
                         <button id="btnAllTime" onclick="setStatsDateFilter('all')"
@@ -804,6 +806,7 @@
                 now.setHours(0, 0, 0, 0); // Midnight local
                 if (currentStatsDateFilter === '3days') now.setDate(now.getDate() - 3);
                 else if (currentStatsDateFilter === '7days') now.setDate(now.getDate() - 7);
+                else if (currentStatsDateFilter === '30days') now.setDate(now.getDate() - 30);
                 else if (currentStatsDateFilter === '90days') now.setDate(now.getDate() - 90);
                 return now;
             };
@@ -1455,6 +1458,7 @@
             const btns = {
                 '3days': document.getElementById('btn3Days'),
                 '7days': document.getElementById('btn7Days'),
+                '30days': document.getElementById('btn30Days'),
                 '90days': document.getElementById('btn90Days'),
                 'all': document.getElementById('btnAllTime')
             };
@@ -1474,6 +1478,7 @@
             if (label) {
                 if (filter === '3days') label.textContent = 'Last 3 Days';
                 else if (filter === '7days') label.textContent = 'Last 7 Days';
+                else if (filter === '30days') label.textContent = 'Last 30 Days';
                 else if (filter === '90days') label.textContent = 'Last 90 Days';
                 else label.textContent = 'All Time';
             }
@@ -2400,6 +2405,7 @@
                     now.setHours(0, 0, 0, 0);
                     if (currentStatsDateFilter === '3days') now.setDate(now.getDate() - 3);
                     else if (currentStatsDateFilter === '7days') now.setDate(now.getDate() - 7);
+                    else if (currentStatsDateFilter === '30days') now.setDate(now.getDate() - 30);
                     else if (currentStatsDateFilter === '90days') now.setDate(now.getDate() - 90);
                     return now;
                 };
@@ -2530,11 +2536,28 @@
                 return;
             }
 
-            // Sort logic: Micro-Fields (4) FIRST, then 5s, then Blue Opps (by virtue of being >5)
-            // But we filter list to [4, 5, BlueOpps]
-            // If we sort by active_runner_count, we get 4, 5, 6/7/8.
-            // This satisfies the requirement: "Blue Opps... last on the sorting after 4 runners and 5 runners"
-            // Sort logic: Date > Category (4 > 5 > Top 2 Opp) > Meeting
+            // Sort logic: Micro-Fields (4) FIRST, then 5s, then Blue Opps
+            // User Request: Sort meetings by start time of the first race within each group (UPCOMING ONLY)
+
+            // Helper to get Category ID
+            const getCategory = (r) => {
+                if (r.active_runner_count === 4) return '4';
+                if (r.isBlueOpp) return 'blue';
+                return '5';
+            };
+
+            // Pre-calculate Min Start Times (Only needed for Upcoming)
+            const meetingStartTimes = {};
+            if (currentView === 'upcoming') {
+                displayRaces.forEach(r => {
+                    const cat = getCategory(r);
+                    const key = `${r.dateStr}|${cat}|${r.meeting_name}`;
+                    if (!meetingStartTimes[key] || r.timestamp < meetingStartTimes[key]) {
+                        meetingStartTimes[key] = r.timestamp;
+                    }
+                });
+            }
+
             const sortedRaces = displayRaces.sort((a, b) => {
                 // Priority 1: 4 Runners Pinned to Top
                 const isA4 = a.active_runner_count === 4;
@@ -2547,20 +2570,30 @@
 
                 // Priority 3: Category
                 // Rank: 5 Runners (1) < Top 2 Opps (2)
-                const getRank = (r) => {
-                    if (r.active_runner_count === 4) return 0;
-                    if (r.isBlueOpp) return 2;
-                    return 1;
-                };
+                const catA = getCategory(a);
+                const catB = getCategory(b);
+                const rankC = (c) => c === '4' ? 0 : (c === '5' ? 1 : 2);
 
-                const rankA = getRank(a);
-                const rankB = getRank(b);
-                if (rankA !== rankB) return rankA - rankB;
+                const rA = rankC(catA);
+                const rB = rankC(catB);
+                if (rA !== rB) return rA - rB;
 
-                // Priority 3: Meeting
+                // Priority 4: Meeting Sort
+                if (currentView === 'upcoming') {
+                    // Time-based Sort
+                    const keyA = `${a.dateStr}|${catA}|${a.meeting_name}`;
+                    const keyB = `${b.dateStr}|${catB}|${b.meeting_name}`;
+                    const timeA = meetingStartTimes[keyA];
+                    const timeB = meetingStartTimes[keyB];
+                    if (timeA !== timeB) return timeA - timeB;
+                }
+
+
+
+                // Priority 5: Meeting Name (Fallback/Grouping)
                 if (a.meeting_name !== b.meeting_name) return a.meeting_name.localeCompare(b.meeting_name);
 
-                // Priority 4: Race Number
+                // Priority 6: Race Number
                 return a.race_number - b.race_number;
             });
 
