@@ -760,7 +760,8 @@
                 if (statsHistory) statsHistory.classList.add('hidden');
                 if (statsView) statsView.classList.remove('hidden');
 
-                renderStats();
+                // Refetch data for stats view with appropriate date range
+                fetchRaces().then(() => renderStats());
             } else {
                 if (statsView) statsView.classList.add('hidden');
                 if (racesContainer) racesContainer.classList.remove('hidden');
@@ -777,6 +778,9 @@
                     if (statsUpcoming) statsUpcoming.classList.remove('hidden');
                     if (statsHistory) statsHistory.classList.add('hidden');
                     document.getElementById('noRacesState').classList.add('hidden');
+
+                    // Refetch data for upcoming view (today/tomorrow only)
+                    fetchRaces().then(() => renderRaces());
                 } else {
                     // History
                     if (filtersContainer) filtersContainer.style.display = 'none';
@@ -789,10 +793,9 @@
                     if (filterContextTitle) filterContextTitle.classList.remove('hidden');
                     if (statsUpcoming) statsUpcoming.classList.add('hidden');
                     if (statsHistory) statsHistory.classList.remove('hidden');
-                }
 
-                if (typeof renderRaces === 'function') {
-                    renderRaces();
+                    // Refetch data for history view with selected date range
+                    fetchRaces().then(() => renderRaces());
                 }
             }
         }
@@ -1502,12 +1505,14 @@
                 else label.textContent = 'All Time';
             }
 
-            // Re-render based on current view
-            if (currentView === 'stats') {
-                renderStats();
-            } else if (currentView === 'history') {
-                renderRaces();
-            }
+            // Refetch data with new date range, then re-render based on current view
+            fetchRaces().then(() => {
+                if (currentView === 'stats') {
+                    renderStats();
+                } else if (currentView === 'history') {
+                    renderRaces();
+                }
+            });
         }
 
         function toggleSmartFilter() {
@@ -2636,13 +2641,62 @@
 
                 document.getElementById('errorState').classList.add('hidden');
 
-                // Query races with their runners
-                // Fetch all races (not just 4-5) so we can show strike rates for all runner counts in History
-                // FIX: Use Newest First (desc) - Limit removed per user request
-                const { data: races, error: racesError } = await supabaseClient
+                // Calculate date ranges based on current view
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const dayAfterTomorrow = new Date(tomorrow);
+                dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
+
+                // For history/stats, default to last 7 days
+                const sevenDaysAgo = new Date(today);
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+                // Build query based on current view
+                let query = supabaseClient
                     .from('races')
-                    .select('*, runners(*)')  // Optimized join
+                    .select('id, meeting_name, race_number, race_time, distance_meters, status, active_runner_count, top_2_in_top_2, meeting_url, runners(id, dog_name, box_number, ghr_odds, sportsbet_odds, is_scratched, starting_price, finishing_position)')
                     .order('race_time', { ascending: false });
+
+                // Apply date filters based on view
+                if (currentView === 'upcoming') {
+                    // Only fetch today and tomorrow's races
+                    query = query
+                        .gte('race_time', today.toISOString())
+                        .lt('race_time', dayAfterTomorrow.toISOString());
+                } else {
+                    // History/Stats: fetch based on selected date range
+                    let startDate;
+                    switch (currentStatsDateFilter) {
+                        case '3days':
+                            startDate = new Date(today);
+                            startDate.setDate(startDate.getDate() - 3);
+                            break;
+                        case '7days':
+                            startDate = sevenDaysAgo;
+                            break;
+                        case '30days':
+                            startDate = new Date(today);
+                            startDate.setDate(startDate.getDate() - 30);
+                            break;
+                        case '90days':
+                            startDate = new Date(today);
+                            startDate.setDate(startDate.getDate() - 90);
+                            break;
+                        case 'all':
+                            startDate = null; // No filter
+                            break;
+                        default:
+                            startDate = sevenDaysAgo;
+                    }
+
+                    if (startDate) {
+                        query = query.gte('race_time', startDate.toISOString());
+                    }
+                }
+
+                const { data: races, error: racesError } = await query;
 
                 if (racesError) throw racesError;
 
@@ -2700,8 +2754,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchRaces();
 
-            // Refresh data every 2 minutes
-            setInterval(fetchRaces, 2 * 60 * 1000);
+            // Refresh data every 30 minutes
+            setInterval(fetchRaces, 30 * 60 * 1000);
         });
     </script>
 
