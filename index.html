@@ -2206,7 +2206,7 @@
                 // Filter by view (upcoming vs history)
                 let passesViewFilter = false;
                 if (currentView === 'upcoming') {
-                    passesViewFilter = raceDateStr >= todayStr;
+                    passesViewFilter = raceDateStr >= todayStr && race.status !== 'resulted';
                 } else {
                     // History: Check strict cutoff (Last 7 Days, etc)
                     if (raceDateStr >= todayStr) return false;
