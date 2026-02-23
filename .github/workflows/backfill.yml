@@ -2,6 +2,11 @@ name: Backfill Fields (Re-scrape Form Guides)
 
 on:
   workflow_dispatch:
+    inputs:
+      days_back:
+        description: 'Number of days to look back for missing fields (default: 7)'
+        required: false
+        default: '7'
 
 permissions:
   contents: read
@@ -28,9 +33,10 @@ jobs:
           pip install -r requirements.txt
           python -m playwright install chromium
 
-      - name: Run scraper (re-scrape fields/form guides)
+      - name: Run fields backfill
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python scraper.py
+          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python backfill_fields.py ${{ github.event.inputs.days_back }}
+
