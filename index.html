@@ -206,6 +206,9 @@
                             class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Today</button>
                         <button id="btnTomorrow" onclick="setDateFilter('tomorrow')"
                             class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Tomorrow</button>
+                        <button id="btnHidePassed" onclick="toggleHidePassed()"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 transition">⏰
+                            Hide Passed</button>
                     </div>
 
                     <!-- History/Stats View Dates -->
@@ -711,6 +714,7 @@
         // currentDistanceFilter moved to Global Filter Logic
         let currentStatsDateFilter = '7days'; // Default to Last 7 Days
         let isSmartFilterActive = false; // "Value Finder" Toggle
+        let isHidePassedActive = false; // Hide races whose time has already passed
         let currentStatsTrackFilter = new Set(); // Empty Set = All Tracks
         let currentStatsCountryFilter = 'all'; // 'all', 'au', 'nz'
 
@@ -1515,6 +1519,17 @@
             });
         }
 
+        function toggleHidePassed() {
+            isHidePassedActive = !isHidePassedActive;
+            const btn = document.getElementById('btnHidePassed');
+            if (isHidePassedActive) {
+                btn.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-600 text-white border border-amber-500 hover:bg-amber-500 transition shadow-[0_0_8px_rgba(217,119,6,0.4)]";
+            } else {
+                btn.className = "px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 transition";
+            }
+            renderRaces();
+        }
+
         function toggleSmartFilter() {
             isSmartFilterActive = !isSmartFilterActive;
             const btn = document.getElementById('btnSmartFilter');
@@ -2236,6 +2251,11 @@
                     } else if (currentDateFilter === 'tomorrow') {
                         if (raceDateStr !== tomorrowStr) return false;
                     }
+                }
+
+                // Hide Passed Filter - hides races that have already started (based on clock)
+                if (currentView === 'upcoming' && isHidePassedActive) {
+                    if (new Date(race.race_time) < now) return false;
                 }
 
                 // Smart Filter: Strict "Value Finder" 💎
