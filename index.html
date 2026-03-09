@@ -958,6 +958,9 @@
             const ltCount = document.getElementById('sixLongTailCount');
             const tsCount = document.getElementById('sixThreeShortCount');
             if (!container) return;
+            // Always keep the main noRacesState hidden while on this view
+            const noRacesEl = document.getElementById('noRacesState');
+            if (noRacesEl) noRacesEl.classList.add('hidden');
 
             const now = new Date();
             const todayStr = now.toLocaleDateString('en-CA');
@@ -2787,10 +2790,14 @@
 
 
             // Handle empty state
-            document.getElementById('noRacesState').classList.add('hidden');
-            if (displayRaces.length === 0) {
-                document.getElementById('noRacesState').classList.remove('hidden');
-                return; // Nothing else to do
+            if (currentView !== 'sixrunners') {
+                document.getElementById('noRacesState').classList.add('hidden');
+                if (displayRaces.length === 0) {
+                    document.getElementById('noRacesState').classList.remove('hidden');
+                    return; // Nothing else to do
+                }
+            } else if (displayRaces.length === 0) {
+                return;
             }
 
 
@@ -2934,9 +2941,13 @@
             }
 
             // Handle empty state for list
-            document.getElementById('noRacesState').classList.add('hidden');
-            if (displayRaces.length === 0) {
-                document.getElementById('noRacesState').classList.remove('hidden');
+            if (currentView !== 'sixrunners') {
+                document.getElementById('noRacesState').classList.add('hidden');
+                if (displayRaces.length === 0) {
+                    document.getElementById('noRacesState').classList.remove('hidden');
+                    return;
+                }
+            } else if (displayRaces.length === 0) {
                 return;
             }
 
