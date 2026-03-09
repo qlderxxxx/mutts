@@ -1594,6 +1594,7 @@
             if (ml3ListEl) {
                 ml3ListEl.innerHTML = ml3Races.map(race => {
                     const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
+                    const fp = d => { const v = parseInt(d.finishing_position, 10); return isNaN(v) ? 99 : v; };
                     const sortSP = [...active].sort((a, b) => a.starting_price - b.starting_price);
                     const inFinish = [...active].sort((a, b) => fp(a) - fp(b));
                     const top3Ids = new Set(sortSP.slice(0, 3).map(r => r.id));
@@ -1633,6 +1634,7 @@
             if (ml4ListEl) {
                 ml4ListEl.innerHTML = ml4Races.map(race => {
                     const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
+                    const fp = d => { const v = parseInt(d.finishing_position, 10); return isNaN(v) ? 99 : v; };
                     const sortSP = [...active].sort((a, b) => a.starting_price - b.starting_price);
                     const inFinish = [...active].sort((a, b) => fp(a) - fp(b));
                     const top3Ids = new Set(sortSP.slice(0, 3).map(r => r.id));
