@@ -15,6 +15,43 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
+        /* 6 Runners Test card styles */
+        .longtail-card {
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+            box-shadow: 0 10px 30px rgba(124, 58, 237, 0.4);
+            animation: pulse-purple 2s ease-in-out infinite;
+        }
+
+        .threeshort-card {
+            background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+            box-shadow: 0 10px 30px rgba(8, 145, 178, 0.35);
+            animation: pulse-cyan 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-purple {
+
+            0%,
+            100% {
+                box-shadow: 0 10px 30px rgba(124, 58, 237, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 15px 40px rgba(124, 58, 237, 0.65);
+            }
+        }
+
+        @keyframes pulse-cyan {
+
+            0%,
+            100% {
+                box-shadow: 0 10px 30px rgba(8, 145, 178, 0.35);
+            }
+
+            50% {
+                box-shadow: 0 15px 40px rgba(8, 145, 178, 0.55);
+            }
+        }
+
         body {
             font-family: 'Inter', sans-serif;
             background: #0a0a0a;
@@ -187,6 +224,10 @@
                     class="px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
                     Stats
                 </button>
+                <button id="btnSixRunners" onclick="setView('sixrunners')"
+                    class="px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">
+                    🐾 6 Runners Test
+                </button>
             </div>
 
             <!-- Date Filter & Distance Filter (only visible in Upcoming view) -->
@@ -207,6 +248,19 @@
                         <button id="btnTomorrow" onclick="setDateFilter('tomorrow')"
                             class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Tomorrow</button>
                         <button id="btnHidePassed" onclick="toggleHidePassed()"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 transition">⏰
+                            Hide Passed</button>
+                    </div>
+
+                    <!-- 6 Runners Test Dates -->
+                    <div id="dateFiltersSixRunners" class="hidden flex gap-2">
+                        <button id="btn6All" onclick="setSixRunnersDateFilter('all')"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">All</button>
+                        <button id="btn6Today" onclick="setSixRunnersDateFilter('today')"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Today</button>
+                        <button id="btn6Tomorrow" onclick="setSixRunnersDateFilter('tomorrow')"
+                            class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">Tomorrow</button>
+                        <button id="btnHidePassed6" onclick="toggleHidePassed()"
                             class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 transition">⏰
                             Hide Passed</button>
                     </div>
@@ -493,11 +547,43 @@
         </div>
 
         <!-- Races Container -->
-        <!-- Races Container -->
         <div id="racesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <!-- Race cards will be inserted here -->
         </div>
-        <!-- Race cards will be inserted here -->
+
+        <!-- 6 Runners Test View -->
+        <div id="sixRunnersView" class="hidden space-y-6">
+            <!-- Summary Stats Bar -->
+            <div id="sixRunnersSummary" class="grid grid-cols-2 gap-3 mb-2">
+                <div class="bg-violet-900/30 backdrop-blur-lg rounded-lg p-3 border border-violet-700/40">
+                    <div class="text-[10px] font-bold text-violet-300 uppercase mb-1">🎯 2 Long-Tail ($30+)</div>
+                    <div class="text-2xl font-bold text-violet-300" id="sixLongTailCount">-</div>
+                    <div class="text-[10px] text-zinc-400 mt-1">2 dogs ≥$30, rest short</div>
+                </div>
+                <div class="bg-cyan-900/30 backdrop-blur-lg rounded-lg p-3 border border-cyan-700/40">
+                    <div class="text-[10px] font-bold text-cyan-300 uppercase mb-1">⚡ 3 Short Dogs (&lt;$10)</div>
+                    <div class="text-2xl font-bold text-cyan-300" id="sixThreeShortCount">-</div>
+                    <div class="text-[10px] text-zinc-400 mt-1">3 dogs &lt;$10, rest longer</div>
+                </div>
+            </div>
+            <!-- Legend -->
+            <div class="flex flex-wrap gap-3 text-[11px] text-zinc-400 mb-1">
+                <span class="flex items-center gap-1.5"><span
+                        class="inline-block w-3 h-3 rounded-full bg-violet-500"></span> 2 Long-Tail pattern</span>
+                <span class="flex items-center gap-1.5"><span
+                        class="inline-block w-3 h-3 rounded-full bg-cyan-500"></span> 3 Short Dogs pattern</span>
+            </div>
+            <!-- Cards Grid -->
+            <div id="sixRunnersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            </div>
+            <!-- Empty state -->
+            <div id="sixRunnersEmpty"
+                class="hidden bg-zinc-900/50 backdrop-blur-lg rounded-xl p-8 text-center border border-zinc-800">
+                <p class="text-2xl mb-2">🔍</p>
+                <p class="text-zinc-300 font-semibold">No 6-runner patterns found</p>
+                <p class="text-zinc-400 text-sm mt-2">Check back soon — looking for 2 long-tail OR 3 short dogs in
+                    6-runner races</p>
+            </div>
         </div>
 
         <!-- Stats View -->
@@ -717,6 +803,246 @@
         let isHidePassedActive = false; // Hide races whose time has already passed
         let currentStatsTrackFilter = new Set(); // Empty Set = All Tracks
         let currentStatsCountryFilter = 'all'; // 'all', 'au', 'nz'
+        let sixRunnersDateFilter = 'all'; // 'all', 'today', 'tomorrow' — for 6 Runners Test view
+
+        // ===================== 6 Runners Test Logic =====================
+
+        // Pattern A: 2 dogs with odds >= $30, rest are noticeably shorter
+        // The "rest" should average under $15 to ensure a clear contrast
+        function isLongTailRace(race) {
+            if (race.active_runner_count !== 6) return false;
+            const activeRunners = (race.runners || []).filter(r => !r.is_scratched);
+            if (activeRunners.length !== 6) return false;
+
+            const isResulted = race.status === 'resulted' || race.top_2_in_top_2 !== null;
+            const getOdds = (r) => isResulted ? (r.starting_price || 0) : (r.sportsbet_odds || 0);
+
+            const runnersWithOdds = activeRunners.filter(r => getOdds(r) > 0);
+            if (runnersWithOdds.length < 6) return false;
+
+            const sorted = [...runnersWithOdds].sort((a, b) => getOdds(a) - getOdds(b));
+            // The 2 longest-priced dogs must both be >= $30
+            const longTail1 = getOdds(sorted[4]);
+            const longTail2 = getOdds(sorted[5]);
+            if (longTail1 < 30 || longTail2 < 30) return false;
+
+            // The rest (4 shortest) should all be under $20 to ensure a real gap
+            const shortest4 = sorted.slice(0, 4);
+            if (!shortest4.every(r => getOdds(r) < 20)) return false;
+
+            return true;
+        }
+
+        // Pattern B: Exactly 3 dogs under $10, the other 3 are >= $12
+        function isThreeShortRace(race) {
+            if (race.active_runner_count !== 6) return false;
+            const activeRunners = (race.runners || []).filter(r => !r.is_scratched);
+            if (activeRunners.length !== 6) return false;
+
+            const isResulted = race.status === 'resulted' || race.top_2_in_top_2 !== null;
+            const getOdds = (r) => isResulted ? (r.starting_price || 0) : (r.sportsbet_odds || 0);
+
+            const runnersWithOdds = activeRunners.filter(r => getOdds(r) > 0);
+            if (runnersWithOdds.length < 6) return false;
+
+            const shorts = runnersWithOdds.filter(r => getOdds(r) < 10);
+            const longs = runnersWithOdds.filter(r => getOdds(r) >= 12);
+
+            // Exactly 3 under $10 AND the other 3 are all >= $12
+            return shorts.length === 3 && longs.length === 3;
+        }
+
+        // Create a 6-runner test card
+        function createSixRunnersCard(race, patternType) {
+            const runners = race.runners || [];
+            const isResulted = race.status === 'resulted' || race.top_2_in_top_2 !== null;
+
+            const getOdds = (r) => isResulted ? r.starting_price : r.sportsbet_odds;
+            const isLongTail = patternType === 'longtail';
+            const isThreeShort = patternType === 'threeshort';
+            const isPlain = patternType === 'plain';
+
+            const cardClass = isPlain
+                ? 'bg-zinc-800 border border-zinc-600/60 hover:bg-zinc-700 hover:border-zinc-500'
+                : (isLongTail ? 'longtail-card' : 'threeshort-card');
+            const badgeText = isPlain ? '' : (isLongTail ? '\uD83C\uDFAF 2 LONG-TAIL ($30+)' : '\u26A1 3 SHORT DOGS');
+            const badgeColor = isLongTail ? 'bg-violet-900' : 'bg-cyan-800';
+
+            // Sort: by odds ascending so the pattern is visually clear
+            const activeRunners = runners.filter(r => !r.is_scratched);
+            let sortedRunners;
+            if (isResulted) {
+                sortedRunners = [...runners].sort((a, b) => (a.finishing_position || 999) - (b.finishing_position || 999));
+            } else {
+                sortedRunners = [...activeRunners].sort((a, b) => (getOdds(a) || 999) - (getOdds(b) || 999));
+            }
+
+            const runnersHTML = sortedRunners.map(runner => {
+                const odds = getOdds(runner);
+                const isShort = odds > 0 && odds < 10;
+                const isLong30 = odds >= 30;
+                const scratchedClass = runner.is_scratched ? 'opacity-40 line-through' : '';
+
+                // Highlight: short = bright, long = dim-red
+                let oddsHighlight = 'text-white/90';
+                if (!runner.is_scratched) {
+                    if (isShort) oddsHighlight = 'text-emerald-300 font-bold';
+                    if (isLong30) oddsHighlight = 'text-red-300 font-bold';
+                }
+
+                const oddsFmt = odds > 0 ? (odds % 1 === 0 ? `$${odds}` : `$${odds.toFixed(2)}`) : '-';
+                const ghrFmt = runner.ghr_odds > 0 ? (runner.ghr_odds % 1 === 0 ? `$${runner.ghr_odds}` : `$${runner.ghr_odds.toFixed(2)}`) : '-';
+                const boxCls = `box-${runner.box_number}`;
+
+                let posIndicator = '';
+                if (isResulted && runner.finishing_position) {
+                    if (runner.finishing_position === 1) posIndicator = `<div class="w-5 text-center font-bold text-yellow-400 text-[10px]">1st</div>`;
+                    else if (runner.finishing_position === 2) posIndicator = `<div class="w-5 text-center font-bold text-zinc-300 text-[10px]">2nd</div>`;
+                    else if (runner.finishing_position === 3) posIndicator = `<div class="w-5 text-center font-bold text-amber-600 text-[10px]">3rd</div>`;
+                    else posIndicator = `<div class="w-5"></div>`;
+                }
+
+                const oddsLabel = isResulted ? 'SP' : 'SB';
+                const oddsLabelColor = isResulted ? 'text-yellow-400/60' : 'text-blue-400/60';
+
+                return `
+                    <div class="flex items-center justify-between py-0.5 border-b border-white/10 last:border-0 ${scratchedClass}">
+                        <div class="flex items-center min-w-0 gap-1">
+                            ${posIndicator}
+                            <div class="w-4 h-4 rounded-full ${boxCls} flex items-center justify-center font-bold text-[9px] flex-shrink-0"
+>${runner.box_number}</div>
+                            <div class="font-medium text-xs text-white/90 truncate pr-1">${runner.dog_name}</div>
+                        </div>
+                        <div class="flex gap-2 items-center flex-shrink-0">
+                            <div class="text-right w-[28px]">
+                                <div class="text-[8px] text-white/40 leading-none">GHR</div>
+                                <div class="text-[10px] leading-tight">${ghrFmt}</div>
+                            </div>
+                            <div class="text-right w-[32px]">
+                                <div class="text-[8px] ${oddsLabelColor} leading-none">${oddsLabel}</div>
+                                <div class="font-bold text-[10px] leading-tight ${oddsHighlight}">${oddsFmt}</div>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+
+            const resultedLabel = isResulted
+                ? `<span class="ml-2 text-[10px] bg-green-900/80 text-green-300 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">Resulted</span>`
+                : '';
+
+            const badgeHtml = badgeText
+                ? `<div class="text-[9px] ${badgeColor} px-1.5 rounded-sm text-white/90 font-bold uppercase tracking-wider flex-shrink-0">${badgeText}</div>`
+                : '';
+
+            return `
+                <div class="${cardClass} rounded-lg p-2 text-white transform transition hover:scale-[1.01] hover:shadow-lg">
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                            ${badgeHtml}
+                            <h2 class="text-xs font-bold leading-tight truncate text-white/90">
+                                ${race.meeting_name} R${race.race_number}${race.distance_meters ? ` <span class="opacity-60 font-normal">${race.distance_meters}m</span>` : ''}
+                            </h2>
+                        </div>
+                        <div class="text-right pl-1 flex-shrink-0 flex items-center gap-1">
+                            <div class="text-xs font-bold whitespace-nowrap opacity-75">${formatDateLabel(race.race_time, isResulted)}</div>
+                            ${resultedLabel}
+                        </div>
+                    </div>
+                    <div class="bg-black/20 rounded-md px-1.5 py-0.5 backdrop-blur-sm">${runnersHTML}</div>
+                </div>`;
+        }
+
+        // Render the 6 Runners Test page
+        function renderSixRunnersTest() {
+            const container = document.getElementById('sixRunnersContainer');
+            const emptyState = document.getElementById('sixRunnersEmpty');
+            const ltCount = document.getElementById('sixLongTailCount');
+            const tsCount = document.getElementById('sixThreeShortCount');
+            if (!container) return;
+
+            const now = new Date();
+            const todayStr = now.toLocaleDateString('en-CA');
+            const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
+            const tmrStr = tomorrow.toLocaleDateString('en-CA');
+
+            // Work from all cached races that match 6 runners
+            let races6 = cachedRaces.filter(r => r.active_runner_count === 6);
+
+            // Date filter (default: only today & tomorrow like Upcoming)
+            races6 = races6.filter(r => {
+                const ds = r.dateStr || new Date(r.race_time).toLocaleDateString('en-CA');
+                if (sixRunnersDateFilter === 'today') return ds === todayStr;
+                if (sixRunnersDateFilter === 'tomorrow') return ds === tmrStr;
+                // 'all' shows today + tomorrow (upcoming only)
+                return ds >= todayStr;
+            });
+
+            // Country / track filters (shared)
+            if (currentStatsCountryFilter !== 'all') {
+                races6 = races6.filter(r => {
+                    const isNZ = NZ_TRACKS.has(r.meeting_name);
+                    return (isNZ ? 'nz' : 'au') === currentStatsCountryFilter;
+                });
+            }
+            if (currentStatsTrackFilter.size > 0) {
+                races6 = races6.filter(r => currentStatsTrackFilter.has(r.meeting_name));
+            }
+
+            // Hide Passed filter
+            if (isHidePassedActive) {
+                const nowMs = Date.now();
+                races6 = races6.filter(r => r.timestamp > nowMs);
+            }
+
+            // Tag each race with matching patterns (all 6-runner races are shown)
+            const tagged = races6.map(race => ({
+                race,
+                lt: isLongTailRace(race),
+                ts: isThreeShortRace(race)
+            }));
+
+            // Update counts (only flagged races)
+            const ltTotal = tagged.filter(t => t.lt).length;
+            const tsTotal = tagged.filter(t => t.ts).length;
+            if (ltCount) ltCount.textContent = ltTotal;
+            if (tsCount) tsCount.textContent = tsTotal;
+
+            if (tagged.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            // Sort: flagged races first (longtail > threeshort > plain), then by time
+            tagged.sort((a, b) => {
+                const rankA = a.lt ? 0 : (a.ts ? 1 : 2);
+                const rankB = b.lt ? 0 : (b.ts ? 1 : 2);
+                if (rankA !== rankB) return rankA - rankB;
+                return a.race.timestamp - b.race.timestamp;
+            });
+
+            container.innerHTML = tagged.map(({ race, lt, ts }) => {
+                const patternType = lt ? 'longtail' : (ts ? 'threeshort' : 'plain');
+                return createSixRunnersCard(race, patternType);
+            }).join('');
+        }
+
+        // Set date filter for 6 Runners Test view
+        function setSixRunnersDateFilter(filter) {
+            sixRunnersDateFilter = filter;
+            const ids = { all: 'btn6All', today: 'btn6Today', tomorrow: 'btn6Tomorrow' };
+            Object.entries(ids).forEach(([key, id]) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.className = key === filter
+                    ? 'px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition'
+                    : 'px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition';
+            });
+            renderSixRunnersTest();
+        }
+
+        // ===================== End 6 Runners Test Logic =====================
 
         // Set View mode
         function setView(mode) {
@@ -725,6 +1051,7 @@
             const btnUpcoming = document.getElementById('btnUpcoming');
             const btnHistory = document.getElementById('btnHistory');
             const btnStats = document.getElementById('btnStats');
+            const btnSixRunners = document.getElementById('btnSixRunners');
 
             const filtersContainer = document.getElementById('filtersContainer');
             const statsFiltersContainer = document.getElementById('statsFiltersContainer');
@@ -734,6 +1061,7 @@
 
             const racesContainer = document.getElementById('racesContainer');
             const statsView = document.getElementById('statsView');
+            const sixRunnersView = document.getElementById('sixRunnersView');
 
             // Reset all buttons
             const activeClass = "px-4 py-1.5 rounded-full text-sm font-bold bg-white text-black transition";
@@ -742,9 +1070,40 @@
             if (btnUpcoming) btnUpcoming.className = (mode === 'upcoming') ? activeClass : inactiveClass;
             if (btnHistory) btnHistory.className = (mode === 'history') ? activeClass : inactiveClass;
             if (btnStats) btnStats.className = (mode === 'stats') ? activeClass : inactiveClass;
+            if (btnSixRunners) btnSixRunners.className = (mode === 'sixrunners') ? 'px-4 py-1.5 rounded-full text-sm font-bold bg-violet-500 text-white transition shadow-[0_0_12px_rgba(139,92,246,0.5)]' : inactiveClass;
+
+            // Hide 6 Runners view by default
+            if (sixRunnersView) sixRunnersView.classList.add('hidden');
 
             // Common Visibility (ALWAYS Show Global Filters)
             // Note: globalFiltersContainer is visible by default structure.
+
+            if (mode === 'sixrunners') {
+                // Hide everything else
+                if (racesContainer) racesContainer.classList.add('hidden');
+                if (statsView) statsView.classList.add('hidden');
+                if (statsUpcoming) statsUpcoming.classList.add('hidden');
+                if (statsHistory) statsHistory.classList.add('hidden');
+                if (filterContextTitle) filterContextTitle.classList.add('hidden');
+                // Also hide the main empty/no-races state so it doesn't bleed through
+                const noRaces = document.getElementById('noRacesState');
+                if (noRaces) noRaces.classList.add('hidden');
+
+                // Show 6 runners date filters in a custom bar
+                document.getElementById('dateFiltersUpcoming').classList.add('hidden');
+                document.getElementById('dateFiltersHistory').classList.add('hidden');
+                document.getElementById('dateFiltersSixRunners').classList.remove('hidden');
+
+                // Show the 6 runners view
+                if (sixRunnersView) sixRunnersView.classList.remove('hidden');
+
+                // Fetch upcoming 6-runner data then render
+                fetchSixRunnersData().then(() => renderSixRunnersTest());
+                return;
+            }
+
+            // If leaving sixrunners, hide its date buttons
+            document.getElementById('dateFiltersSixRunners').classList.add('hidden');
 
             // Container Visibility
             if (mode === 'stats') {
@@ -1521,13 +1880,15 @@
 
         function toggleHidePassed() {
             isHidePassedActive = !isHidePassedActive;
-            const btn = document.getElementById('btnHidePassed');
-            if (isHidePassedActive) {
-                btn.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-600 text-white border border-amber-500 hover:bg-amber-500 transition shadow-[0_0_8px_rgba(217,119,6,0.4)]";
-            } else {
-                btn.className = "px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 transition";
-            }
-            renderRaces();
+            const activeClass = "px-3 py-1 rounded-full text-xs font-bold bg-amber-600 text-white border border-amber-500 hover:bg-amber-500 transition shadow-[0_0_8px_rgba(217,119,6,0.4)]";
+            const inactiveClass = "px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 transition";
+            // Sync both Hide Passed buttons (Upcoming + 6 Runners Test)
+            ['btnHidePassed', 'btnHidePassed6'].forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.className = isHidePassedActive ? activeClass : inactiveClass;
+            });
+            if (currentView === 'sixrunners') renderSixRunnersTest();
+            else renderRaces();
         }
 
         function toggleSmartFilter() {
@@ -2767,6 +3128,51 @@
                 document.getElementById('loadingState').classList.add('hidden');
                 document.getElementById('errorState').classList.remove('hidden');
                 document.getElementById('errorMessage').textContent = error.message;
+            }
+        }
+
+        // Fetch 6-runner races for the 6 Runners Test view
+        // Fetches today + tomorrow (plus past 90 days of resulted) and stores in cachedSixRunners
+        let cachedSixRunners = [];
+
+        async function fetchSixRunnersData() {
+            if (!supabaseClient) return;
+            try {
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const dayAfterTomorrow = new Date(today);
+                dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+
+                const { data: races, error } = await supabaseClient
+                    .from('races')
+                    .select('id, meeting_name, race_number, race_time, distance_meters, status, active_runner_count, top_2_in_top_2, meeting_url, runners(id, dog_name, box_number, ghr_odds, sportsbet_odds, is_scratched, starting_price, finishing_position)')
+                    .eq('active_runner_count', 6)
+                    .gte('race_time', today.toISOString())
+                    .lt('race_time', dayAfterTomorrow.toISOString())
+                    .order('race_time', { ascending: true });
+
+                if (error) throw error;
+
+                // Pre-calculate helpers
+                (races || []).forEach(r => {
+                    const d = new Date(r.race_time);
+                    r.timestamp = d.getTime();
+                    r.dateStr = d.toLocaleDateString('en-CA');
+                });
+
+                // Merge into cachedRaces so renderSixRunnersTest can use cachedRaces directly
+                // Avoid duplicates by id
+                const existingIds = new Set(cachedRaces.map(r => r.id));
+                (races || []).forEach(r => {
+                    if (!existingIds.has(r.id)) {
+                        cachedRaces.push(r);
+                        existingIds.add(r.id);
+                    }
+                });
+
+                console.log(`Fetched ${(races || []).length} six-runner races for 6RT view.`);
+            } catch (err) {
+                console.error('fetchSixRunnersData error:', err);
             }
         }
 
