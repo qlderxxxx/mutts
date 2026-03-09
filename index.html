@@ -603,22 +603,26 @@
             <div id="sixRunnersLiveSection" class="space-y-4">
                 <!-- Summary Stats Bar -->
                 <div id="sixRunnersSummary" class="grid grid-cols-2 gap-3">
-                    <div class="bg-violet-900/30 backdrop-blur-lg rounded-lg p-3 border border-violet-700/40">
+                    <div id="sixFilterLt" onclick="setSixRunnersPatternFilter('lt')"
+                        class="cursor-pointer transition hover:bg-violet-900/50 bg-violet-900/30 backdrop-blur-lg rounded-lg p-3 border border-violet-700/40">
                         <div class="text-[10px] font-bold text-violet-300 uppercase mb-1">🎯 2 Long-Tail ($20+)</div>
                         <div class="text-2xl font-bold text-violet-300" id="sixLongTailCount">-</div>
                         <div class="text-[10px] text-zinc-400 mt-1">2 dogs ≥$20, rest short</div>
                     </div>
-                    <div class="bg-cyan-900/30 backdrop-blur-lg rounded-lg p-3 border border-cyan-700/40">
+                    <div id="sixFilterTs" onclick="setSixRunnersPatternFilter('ts')"
+                        class="cursor-pointer transition hover:bg-cyan-900/50 bg-cyan-900/30 backdrop-blur-lg rounded-lg p-3 border border-cyan-700/40">
                         <div class="text-[10px] font-bold text-cyan-300 uppercase mb-1">⚡ 3 Short Dogs (&lt;$10)</div>
                         <div class="text-2xl font-bold text-cyan-300" id="sixThreeShortCount">-</div>
                         <div class="text-[10px] text-zinc-400 mt-1">3 dogs &lt;$10, rest longer</div>
                     </div>
-                    <div class="bg-rose-900/30 backdrop-blur-lg rounded-lg p-3 border border-rose-700/40">
+                    <div id="sixFilterMl3" onclick="setSixRunnersPatternFilter('ml3')"
+                        class="cursor-pointer transition hover:bg-rose-900/50 bg-rose-900/30 backdrop-blur-lg rounded-lg p-3 border border-rose-700/40">
                         <div class="text-[10px] font-bold text-rose-300 uppercase mb-1">🧠 ML Top 3 SRM</div>
                         <div class="text-2xl font-bold text-rose-300" id="sixMl3Count">-</div>
                         <div class="text-[10px] text-zinc-400 mt-1">4th dog ≥3× price of 3rd</div>
                     </div>
-                    <div class="bg-orange-900/30 backdrop-blur-lg rounded-lg p-3 border border-orange-700/40">
+                    <div id="sixFilterMl4" onclick="setSixRunnersPatternFilter('ml4')"
+                        class="cursor-pointer transition hover:bg-orange-900/50 bg-orange-900/30 backdrop-blur-lg rounded-lg p-3 border border-orange-700/40">
                         <div class="text-[10px] font-bold text-orange-300 uppercase mb-1">🧠 ML Top 4 SRM</div>
                         <div class="text-2xl font-bold text-orange-300" id="sixMl4Count">-</div>
                         <div class="text-[10px] text-zinc-400 mt-1">5th dog ≥3× price of 4th</div>
@@ -1034,8 +1038,10 @@
         let currentStatsTrackFilter = new Set(); // Empty Set = All Tracks
         let currentStatsCountryFilter = 'all'; // 'all', 'au', 'nz'
         let sixRunnersDateFilter = 'all'; // 'all', 'today', 'tomorrow' — for 6 Runners Test view
+        let sixRunnersLivePatternFilter = 'all'; // 'all', 'lt', 'ts', 'ml3', 'ml4'
 
         // ===================== 6 Runners Test Logic =====================
+
 
         // Pattern A: 2 dogs with odds >= $20, rest are noticeably shorter
         function isLongTailRace(race) {
@@ -1112,22 +1118,23 @@
         }
 
         // Create a 6-runner test card
-        function createSixRunnersCard(race, patternType) {
+        function createSixRunnersCard(race, patterns) {
             const runners = race.runners || [];
             const isResulted = race.status === 'resulted' || race.top_2_in_top_2 !== null;
 
             const getOdds = (r) => isResulted ? r.starting_price : r.sportsbet_odds;
-            const isLongTail = patternType === 'longtail';
-            const isThreeShort = patternType === 'threeshort';
-            const isMl3 = patternType === 'ml3srm';
-            const isMl4 = patternType === 'ml4srm';
-            const isPlain = patternType === 'plain';
+            const { lt, ts, ml3, ml4 } = patterns;
+            const isPlain = !lt && !ts && !ml3 && !ml4;
 
             const cardClass = isPlain
                 ? 'bg-zinc-800 border border-zinc-600/60 hover:bg-zinc-700 hover:border-zinc-500'
-                : (isLongTail ? 'longtail-card' : (isMl3 ? 'ml3srm-card' : (isMl4 ? 'ml4srm-card' : 'threeshort-card')));
-            const badgeText = isPlain ? '' : (isLongTail ? '🎯 2 LONG-TAIL ($20+)' : (isMl3 ? '🧠 ML TOP 3 SRM' : (isMl4 ? '🧠 ML TOP 4 SRM' : '⚡ 3 SHORT DOGS')));
-            const badgeColor = isLongTail ? 'bg-violet-900' : (isMl3 ? 'bg-rose-900' : (isMl4 ? 'bg-orange-900' : 'bg-cyan-800'));
+                : (lt ? 'longtail-card' : (ml3 ? 'ml3srm-card' : (ml4 ? 'ml4srm-card' : 'threeshort-card')));
+
+            const badges = [];
+            if (lt) badges.push({ t: '🎯 2 LONG-TAIL ($20+)', c: 'bg-violet-900 text-violet-100' });
+            if (ml3) badges.push({ t: '🧠 ML TOP 3 SRM', c: 'bg-rose-900 text-rose-100' });
+            if (ml4) badges.push({ t: '🧠 ML TOP 4 SRM', c: 'bg-orange-900 text-orange-100' });
+            if (ts) badges.push({ t: '⚡ 3 SHORT DOGS', c: 'bg-cyan-800 text-cyan-100' });
 
             // Sort: by odds ascending so the pattern is visually clear
             const activeRunners = runners.filter(r => !r.is_scratched);
@@ -1192,14 +1199,12 @@
                 ? `<span class="ml-2 text-[10px] bg-green-900/80 text-green-300 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">Resulted</span>`
                 : '';
 
-            const badgeHtml = badgeText
-                ? `<div class="text-[9px] ${badgeColor} px-1.5 rounded-sm text-white/90 font-bold uppercase tracking-wider flex-shrink-0">${badgeText}</div>`
-                : '';
+            const badgeHtml = isPlain ? '' : '<div class="flex flex-wrap gap-1">' + badges.map(b => `<div class="text-[9px] ${b.c} px-1.5 rounded-sm font-bold uppercase tracking-wider flex-shrink-0">${b.t}</div>`).join('') + '</div>';
 
             return `
                 <div class="${cardClass} rounded-lg p-2 text-white transform transition hover:scale-[1.01] hover:shadow-lg">
                     <div class="flex items-center justify-between mb-1">
-                        <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                        <div class="flex flex-col gap-1 min-w-0 flex-1">
                             ${badgeHtml}
                             <h2 class="text-xs font-bold leading-tight truncate text-white/90">
                                 ${race.meeting_name} R${race.race_number}${race.distance_meters ? ` <span class="opacity-60 font-normal">${race.distance_meters}m</span>` : ''}
@@ -1280,6 +1285,11 @@
             if (ml3El) ml3El.textContent = ml3Total;
             if (ml4El) ml4El.textContent = ml4Total;
 
+            // Filter by selected summary box (live view)
+            if (sixRunnersLivePatternFilter !== 'all') {
+                tagged = tagged.filter(t => t[sixRunnersLivePatternFilter]);
+            }
+
             if (tagged.length === 0) {
                 container.innerHTML = '';
                 emptyState.classList.remove('hidden');
@@ -1296,9 +1306,38 @@
             });
 
             container.innerHTML = tagged.map(({ race, lt, ts, ml3, ml4 }) => {
-                const patternType = lt ? 'longtail' : (ml3 ? 'ml3srm' : (ml4 ? 'ml4srm' : (ts ? 'threeshort' : 'plain')));
-                return createSixRunnersCard(race, patternType);
+                return createSixRunnersCard(race, { lt, ts, ml3, ml4 });
             }).join('');
+        }
+
+        function setSixRunnersPatternFilter(filterKey) {
+            // Toggle off if clicking the already active filter
+            sixRunnersLivePatternFilter = (sixRunnersLivePatternFilter === filterKey) ? 'all' : filterKey;
+
+            // Update ui styles of the boxes
+            const boxes = {
+                lt: { id: 'sixFilterLt', base: 'bg-violet-900/30 border-violet-700/40', active: 'bg-violet-800/60 border-violet-400 ring-2 ring-violet-500' },
+                ts: { id: 'sixFilterTs', base: 'bg-cyan-900/30 border-cyan-700/40', active: 'bg-cyan-800/60 border-cyan-400 ring-2 ring-cyan-500' },
+                ml3: { id: 'sixFilterMl3', base: 'bg-rose-900/30 border-rose-700/40', active: 'bg-rose-800/60 border-rose-400 ring-2 ring-rose-500' },
+                ml4: { id: 'sixFilterMl4', base: 'bg-orange-900/30 border-orange-700/40', active: 'bg-orange-800/60 border-orange-400 ring-2 ring-orange-500' }
+            };
+
+            Object.entries(boxes).forEach(([key, info]) => {
+                const el = document.getElementById(info.id);
+                if (el) {
+                    // Reset to base
+                    el.className = `cursor-pointer transition backdrop-blur-lg rounded-lg p-3 border ${info.base}`;
+                    // Apply active if matching
+                    if (key === sixRunnersLivePatternFilter) {
+                        el.className = `cursor-pointer transition backdrop-blur-lg rounded-lg p-3 border ${info.active}`;
+                    } else if (sixRunnersLivePatternFilter !== 'all') {
+                        // Dim others if one is selected
+                        el.classList.add('opacity-50');
+                    }
+                }
+            });
+
+            renderSixRunnersTest();
         }
 
         // Set date filter for 6 Runners Test view
