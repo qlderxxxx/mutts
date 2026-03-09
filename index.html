@@ -552,39 +552,124 @@
         </div>
 
         <!-- 6 Runners Test View -->
-        <div id="sixRunnersView" class="hidden space-y-6">
-            <!-- Summary Stats Bar -->
-            <div id="sixRunnersSummary" class="grid grid-cols-2 gap-3 mb-2">
-                <div class="bg-violet-900/30 backdrop-blur-lg rounded-lg p-3 border border-violet-700/40">
-                    <div class="text-[10px] font-bold text-violet-300 uppercase mb-1">🎯 2 Long-Tail ($20+)</div>
-                    <div class="text-2xl font-bold text-violet-300" id="sixLongTailCount">-</div>
-                    <div class="text-[10px] text-zinc-400 mt-1">2 dogs ≥$20, rest short</div>
+        <div id="sixRunnersView" class="hidden space-y-4">
+
+            <!-- Sub-nav: Live / Stats -->
+            <div class="flex gap-2">
+                <button id="btn6SubLive" onclick="setSixRunnersSubView('live')"
+                    class="px-4 py-1.5 rounded-full text-sm font-bold bg-white text-black transition">🔴 Live</button>
+                <button id="btn6SubStats" onclick="setSixRunnersSubView('stats')"
+                    class="px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">📊
+                    Stats</button>
+            </div>
+
+            <!-- ── LIVE SECTION ── -->
+            <div id="sixRunnersLiveSection" class="space-y-4">
+                <!-- Summary Stats Bar -->
+                <div id="sixRunnersSummary" class="grid grid-cols-2 gap-3">
+                    <div class="bg-violet-900/30 backdrop-blur-lg rounded-lg p-3 border border-violet-700/40">
+                        <div class="text-[10px] font-bold text-violet-300 uppercase mb-1">🎯 2 Long-Tail ($20+)</div>
+                        <div class="text-2xl font-bold text-violet-300" id="sixLongTailCount">-</div>
+                        <div class="text-[10px] text-zinc-400 mt-1">2 dogs ≥$20, rest short</div>
+                    </div>
+                    <div class="bg-cyan-900/30 backdrop-blur-lg rounded-lg p-3 border border-cyan-700/40">
+                        <div class="text-[10px] font-bold text-cyan-300 uppercase mb-1">⚡ 3 Short Dogs (&lt;$10)</div>
+                        <div class="text-2xl font-bold text-cyan-300" id="sixThreeShortCount">-</div>
+                        <div class="text-[10px] text-zinc-400 mt-1">3 dogs &lt;$10, rest longer</div>
+                    </div>
                 </div>
-                <div class="bg-cyan-900/30 backdrop-blur-lg rounded-lg p-3 border border-cyan-700/40">
-                    <div class="text-[10px] font-bold text-cyan-300 uppercase mb-1">⚡ 3 Short Dogs (&lt;$10)</div>
-                    <div class="text-2xl font-bold text-cyan-300" id="sixThreeShortCount">-</div>
-                    <div class="text-[10px] text-zinc-400 mt-1">3 dogs &lt;$10, rest longer</div>
+                <!-- Legend -->
+                <div class="flex flex-wrap gap-3 text-[11px] text-zinc-400">
+                    <span class="flex items-center gap-1.5"><span
+                            class="inline-block w-3 h-3 rounded-full bg-violet-500"></span> 2 Long-Tail pattern</span>
+                    <span class="flex items-center gap-1.5"><span
+                            class="inline-block w-3 h-3 rounded-full bg-cyan-500"></span> 3 Short Dogs pattern</span>
+                </div>
+                <!-- Cards Grid -->
+                <div id="sixRunnersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+                <!-- Empty state -->
+                <div id="sixRunnersEmpty"
+                    class="hidden bg-zinc-900/50 backdrop-blur-lg rounded-xl p-8 text-center border border-zinc-800">
+                    <p class="text-2xl mb-2">🔍</p>
+                    <p class="text-zinc-300 font-semibold">No 6-runner patterns found</p>
+                    <p class="text-zinc-400 text-sm mt-2">Check back soon — looking for 2 long-tail OR 3 short dogs in
+                        6-runner races</p>
                 </div>
             </div>
-            <!-- Legend -->
-            <div class="flex flex-wrap gap-3 text-[11px] text-zinc-400 mb-1">
-                <span class="flex items-center gap-1.5"><span
-                        class="inline-block w-3 h-3 rounded-full bg-violet-500"></span> 2 Long-Tail pattern</span>
-                <span class="flex items-center gap-1.5"><span
-                        class="inline-block w-3 h-3 rounded-full bg-cyan-500"></span> 3 Short Dogs pattern</span>
+
+            <!-- ── STATS SECTION ── -->
+            <div id="sixRunnersStatsSection" class="hidden space-y-4">
+                <!-- Date filter -->
+                <div class="flex flex-wrap gap-2">
+                    <button id="btnSR7d" onclick="setSixRunnersHistoryFilter('7days')"
+                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">7
+                        Days</button>
+                    <button id="btnSR30d" onclick="setSixRunnersHistoryFilter('30days')"
+                        class="px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition">30 Days</button>
+                    <button id="btnSR90d" onclick="setSixRunnersHistoryFilter('90days')"
+                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">90
+                        Days</button>
+                    <button id="btnSRAll" onclick="setSixRunnersHistoryFilter('all')"
+                        class="px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition">All
+                        Time</button>
+                </div>
+                <!-- Loading indicator -->
+                <div id="sixRunnersStatsLoading" class="hidden text-center py-8 text-zinc-400 text-sm">Loading
+                    historical data…</div>
+                <!-- Stats cards -->
+                <div id="sixRunnersStatsContent" class="space-y-4">
+                    <!-- 🎯 Long-Tail Pattern -->
+                    <div class="bg-violet-900/20 border border-violet-700/40 rounded-xl p-4">
+                        <h3 class="text-sm font-bold text-violet-300 mb-3">🎯 2 Long-Tail ($20+) — Strike Rates</h3>
+                        <p class="text-[11px] text-zinc-400 mb-3">Do the 4 shorter dogs fill the top positions?</p>
+                        <div class="grid grid-cols-3 gap-3 text-center mb-3">
+                            <div class="bg-black/30 rounded-lg p-3">
+                                <div class="text-[10px] text-zinc-400 uppercase mb-1">Total Races</div>
+                                <div class="text-xl font-bold text-violet-300" id="ltStatTotal">-</div>
+                            </div>
+                            <div class="bg-black/30 rounded-lg p-3">
+                                <div class="text-[10px] text-zinc-400 uppercase mb-1">Fill Top 3</div>
+                                <div class="text-xl font-bold text-emerald-400" id="ltStatTop3Pct">-</div>
+                                <div class="text-[10px] text-zinc-500" id="ltStatTop3Raw">-</div>
+                            </div>
+                            <div class="bg-black/30 rounded-lg p-3">
+                                <div class="text-[10px] text-zinc-400 uppercase mb-1">Fill Top 4</div>
+                                <div class="text-xl font-bold text-emerald-300" id="ltStatTop4Pct">-</div>
+                                <div class="text-[10px] text-zinc-500" id="ltStatTop4Raw">-</div>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-zinc-500">Fill Top 3 = 3+ of 4 short dogs finish positions 1-3
+                            &nbsp;|&nbsp; Fill Top 4 = all 4 short dogs finish positions 1-4</p>
+                    </div>
+
+                    <!-- ⚡ Three Short Dogs Pattern -->
+                    <div class="bg-cyan-900/20 border border-cyan-700/40 rounded-xl p-4">
+                        <h3 class="text-sm font-bold text-cyan-300 mb-3">⚡ 3 Short Dogs (&lt;$10) — Strike Rates</h3>
+                        <p class="text-[11px] text-zinc-400 mb-3">Do all 3 short dogs finish in the top positions?</p>
+                        <div class="grid grid-cols-3 gap-3 text-center mb-3">
+                            <div class="bg-black/30 rounded-lg p-3">
+                                <div class="text-[10px] text-zinc-400 uppercase mb-1">Total Races</div>
+                                <div class="text-xl font-bold text-cyan-300" id="tsStatTotal">-</div>
+                            </div>
+                            <div class="bg-black/30 rounded-lg p-3">
+                                <div class="text-[10px] text-zinc-400 uppercase mb-1">All 3 in Top 3</div>
+                                <div class="text-xl font-bold text-emerald-400" id="tsStatTop3Pct">-</div>
+                                <div class="text-[10px] text-zinc-500" id="tsStatTop3Raw">-</div>
+                            </div>
+                            <div class="bg-black/30 rounded-lg p-3">
+                                <div class="text-[10px] text-zinc-400 uppercase mb-1">All 3 in Top 4</div>
+                                <div class="text-xl font-bold text-emerald-300" id="tsStatTop4Pct">-</div>
+                                <div class="text-[10px] text-zinc-500" id="tsStatTop4Raw">-</div>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-zinc-500">All 3 in Top 3 = short dogs hold positions 1, 2 &amp; 3
+                            &nbsp;|&nbsp; All 3 in Top 4 = all 3 finish within 4th</p>
+                    </div>
+                </div>
             </div>
-            <!-- Cards Grid -->
-            <div id="sixRunnersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            </div>
-            <!-- Empty state -->
-            <div id="sixRunnersEmpty"
-                class="hidden bg-zinc-900/50 backdrop-blur-lg rounded-xl p-8 text-center border border-zinc-800">
-                <p class="text-2xl mb-2">🔍</p>
-                <p class="text-zinc-300 font-semibold">No 6-runner patterns found</p>
-                <p class="text-zinc-400 text-sm mt-2">Check back soon — looking for 2 long-tail OR 3 short dogs in
-                    6-runner races</p>
-            </div>
+
         </div>
+
 
         <!-- Stats View -->
         <div id="statsView" class="hidden space-y-8">
@@ -1045,6 +1130,147 @@
             renderSixRunnersTest();
         }
 
+        // ── 6 Runners Stats sub-view ──────────────────────────────────────
+        let cachedSixRunnersHistory = [];
+        let sixRunnersHistoryDateFilter = '30days';
+        let sixRunnersSubView = 'live'; // 'live' | 'stats'
+
+        async function fetchSixRunnersHistory() {
+            if (!supabaseClient) return;
+            try {
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                let startDate = null;
+                if (sixRunnersHistoryDateFilter !== 'all') {
+                    startDate = new Date(today);
+                    const days = { '7days': 7, '30days': 30, '90days': 90 };
+                    startDate.setDate(startDate.getDate() - (days[sixRunnersHistoryDateFilter] || 30));
+                }
+
+                let query = supabaseClient
+                    .from('races')
+                    .select('id, meeting_name, race_number, race_time, distance_meters, status, active_runner_count, top_2_in_top_2, runners(id, dog_name, box_number, starting_price, finishing_position, is_scratched)')
+                    .eq('active_runner_count', 6)
+                    .lt('race_time', today.toISOString())
+                    .not('top_2_in_top_2', 'is', null)
+                    .order('race_time', { ascending: false });
+
+                if (startDate) query = query.gte('race_time', startDate.toISOString());
+
+                const { data, error } = await query;
+                if (error) throw error;
+
+                (data || []).forEach(r => {
+                    const d = new Date(r.race_time);
+                    r.timestamp = d.getTime();
+                    r.dateStr = d.toLocaleDateString('en-CA');
+                });
+
+                cachedSixRunnersHistory = data || [];
+                console.log(`Fetched ${cachedSixRunnersHistory.length} historical 6-runner races.`);
+            } catch (err) {
+                console.error('fetchSixRunnersHistory error:', err);
+            }
+        }
+
+        function renderSixRunnersStats() {
+            const loading = document.getElementById('sixRunnersStatsLoading');
+            const content = document.getElementById('sixRunnersStatsContent');
+
+            // Long-tail: use starting_price for pattern detection on historical
+            const ltRaces = cachedSixRunnersHistory.filter(r => isLongTailRace(r));
+            const tsRaces = cachedSixRunnersHistory.filter(r => isThreeShortRace(r));
+
+            // Long-tail: do the 4 short dogs fill the top positions?
+            let ltTop3 = 0, ltTop4 = 0;
+            ltRaces.forEach(race => {
+                const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
+                const sorted = [...active].sort((a, b) => (a.starting_price || 999) - (b.starting_price || 999));
+                const shortDogs = sorted.slice(0, 4); // The 4 with lowest SP
+                const inTop3Count = shortDogs.filter(d => d.finishing_position <= 3).length;
+                const allInTop4 = shortDogs.every(d => d.finishing_position <= 4);
+                if (inTop3Count >= 3) ltTop3++;
+                if (allInTop4) ltTop4++;
+            });
+
+            // Three-short: do all 3 short dogs finish top 3 / top 4?
+            let tsTop3 = 0, tsTop4 = 0;
+            tsRaces.forEach(race => {
+                const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
+                const shortDogs = active.filter(r => r.starting_price < 10);
+                if (shortDogs.length !== 3) return;
+                if (shortDogs.every(d => d.finishing_position <= 3)) tsTop3++;
+                if (shortDogs.every(d => d.finishing_position <= 4)) tsTop4++;
+            });
+
+            const pct = (n, d) => d > 0 ? `${((n / d) * 100).toFixed(1)}%` : 'N/A';
+
+            const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+            // Long-tail
+            set('ltStatTotal', ltRaces.length);
+            set('ltStatTop3Pct', pct(ltTop3, ltRaces.length));
+            set('ltStatTop3Raw', `${ltTop3} / ${ltRaces.length}`);
+            set('ltStatTop4Pct', pct(ltTop4, ltRaces.length));
+            set('ltStatTop4Raw', `${ltTop4} / ${ltRaces.length}`);
+
+            // Three-short
+            set('tsStatTotal', tsRaces.length);
+            set('tsStatTop3Pct', pct(tsTop3, tsRaces.length));
+            set('tsStatTop3Raw', `${tsTop3} / ${tsRaces.length}`);
+            set('tsStatTop4Pct', pct(tsTop4, tsRaces.length));
+            set('tsStatTop4Raw', `${tsTop4} / ${tsRaces.length}`);
+
+            if (loading) loading.classList.add('hidden');
+            if (content) content.classList.remove('hidden');
+        }
+
+        function setSixRunnersSubView(view) {
+            sixRunnersSubView = view;
+            const liveBtn = document.getElementById('btn6SubLive');
+            const statsBtn = document.getElementById('btn6SubStats');
+            const liveSection = document.getElementById('sixRunnersLiveSection');
+            const statsSection = document.getElementById('sixRunnersStatsSection');
+            const active = 'px-4 py-1.5 rounded-full text-sm font-bold bg-white text-black transition';
+            const inactive = 'px-4 py-1.5 rounded-full text-sm font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition';
+
+            if (view === 'live') {
+                if (liveBtn) liveBtn.className = active;
+                if (statsBtn) statsBtn.className = inactive;
+                if (liveSection) liveSection.classList.remove('hidden');
+                if (statsSection) statsSection.classList.add('hidden');
+            } else {
+                if (liveBtn) liveBtn.className = inactive;
+                if (statsBtn) statsBtn.className = 'px-4 py-1.5 rounded-full text-sm font-bold bg-emerald-600 text-white transition';
+                if (liveSection) liveSection.classList.add('hidden');
+                if (statsSection) statsSection.classList.remove('hidden');
+
+                // Fetch then render
+                const loading = document.getElementById('sixRunnersStatsLoading');
+                const content = document.getElementById('sixRunnersStatsContent');
+                if (loading) loading.classList.remove('hidden');
+                if (content) content.classList.add('hidden');
+                fetchSixRunnersHistory().then(() => renderSixRunnersStats());
+            }
+        }
+
+        function setSixRunnersHistoryFilter(filter) {
+            sixRunnersHistoryDateFilter = filter;
+            const ids = { '7days': 'btnSR7d', '30days': 'btnSR30d', '90days': 'btnSR90d', 'all': 'btnSRAll' };
+            Object.entries(ids).forEach(([key, id]) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.className = key === filter
+                    ? 'px-3 py-1 rounded-full text-xs font-bold bg-white text-black transition'
+                    : 'px-3 py-1 rounded-full text-xs font-bold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition';
+            });
+            const loading = document.getElementById('sixRunnersStatsLoading');
+            const content = document.getElementById('sixRunnersStatsContent');
+            if (loading) loading.classList.remove('hidden');
+            if (content) content.classList.add('hidden');
+            fetchSixRunnersHistory().then(() => renderSixRunnersStats());
+        }
+
         // ===================== End 6 Runners Test Logic =====================
 
         // Set View mode
@@ -1097,8 +1323,9 @@
                 document.getElementById('dateFiltersHistory').classList.add('hidden');
                 document.getElementById('dateFiltersSixRunners').classList.remove('hidden');
 
-                // Show the 6 runners view
+                // Show the 6 runners view and reset to live sub-view
                 if (sixRunnersView) sixRunnersView.classList.remove('hidden');
+                setSixRunnersSubView('live');
 
                 // Fetch upcoming 6-runner data then render
                 fetchSixRunnersData().then(() => renderSixRunnersTest());
