@@ -1260,25 +1260,28 @@
             if (ltListEl) {
                 ltListEl.innerHTML = ltRaces.map(race => {
                     const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
-                    const sorted = [...active].sort((a, b) => (a.starting_price || 999) - (b.starting_price || 999));
-                    const shortDogs = sorted.slice(0, 4);
-                    const longDogs = sorted.slice(4);
+                    const byPrice = [...active].sort((a, b) => (a.starting_price || 999) - (b.starting_price || 999));
+                    const shortDogSet = new Set(byPrice.slice(0, 4).map(d => d.id));
+                    const longDogSet = new Set(byPrice.slice(4).map(d => d.id));
+                    const inFinishOrder = [...active].sort((a, b) => (a.finishing_position || 99) - (b.finishing_position || 99));
+                    const shortDogs = byPrice.slice(0, 4);
                     const inTop3Count = shortDogs.filter(d => d.finishing_position <= 3).length;
                     const allInTop4 = shortDogs.every(d => d.finishing_position <= 4);
-                    const badge = allInTop4
-                        ? '<span class="bg-emerald-700/80 text-emerald-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 4</span>'
-                        : inTop3Count >= 3
-                            ? '<span class="bg-blue-700/80 text-blue-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 3</span>'
-                            : '<span class="bg-zinc-700/60 text-zinc-400 px-1.5 py-0.5 rounded text-[9px]">✗ miss</span>';
-                    const dogsHtml = [...shortDogs.map(d =>
-                        `<span class="text-emerald-300">${d.dog_name} (${posIcon(d.finishing_position)})</span>`
-                    ), ...longDogs.map(d =>
-                        `<span class="text-red-300/70">${d.dog_name} (${posIcon(d.finishing_position)})</span>`
-                    )].join('<span class="text-zinc-600 mx-1">·</span>');
+                    // Show both badges if both hit
+                    let badges = '';
+                    if (inTop3Count >= 3) badges += '<span class="bg-blue-700/80 text-blue-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 3</span>';
+                    if (allInTop4) badges += '<span class="bg-emerald-700/80 text-emerald-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 4</span>';
+                    if (!badges) badges = '<span class="bg-zinc-700/60 text-zinc-400 px-1.5 py-0.5 rounded text-[9px]">✗ miss</span>';
+                    const dogsHtml = inFinishOrder.map(d => {
+                        const sp = `$${(d.starting_price || 0).toFixed(2)}`;
+                        return shortDogSet.has(d.id)
+                            ? `<span class="text-emerald-300">${d.dog_name} ${sp} (${posIcon(d.finishing_position)})</span>`
+                            : `<span class="text-red-300/60">${d.dog_name} ${sp} (${posIcon(d.finishing_position)})</span>`;
+                    }).join('<span class="text-zinc-600 mx-1">·</span>');
                     return `<div class="px-4 py-2.5 hover:bg-violet-900/20">
                         <div class="flex items-center justify-between gap-2 mb-1">
                             <span class="font-semibold text-white/80">${race.meeting_name} R${race.race_number}</span>
-                            <div class="flex items-center gap-1.5">${badge}<span class="text-zinc-500">${fmtDate(race.race_time)}</span></div>
+                            <div class="flex items-center gap-1">${badges}<span class="text-zinc-500 ml-1">${fmtDate(race.race_time)}</span></div>
                         </div>
                         <div class="flex flex-wrap gap-x-1 gap-y-0.5 text-[10px]">${dogsHtml}</div>
                     </div>`;
@@ -1290,24 +1293,26 @@
             if (tsListEl) {
                 tsListEl.innerHTML = tsRaces.map(race => {
                     const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
+                    const shortDogSet = new Set(active.filter(r => r.starting_price < 10).map(d => d.id));
                     const shortDogs = active.filter(r => r.starting_price < 10);
-                    const otherDogs = active.filter(r => r.starting_price >= 10).sort((a, b) => a.starting_price - b.starting_price);
+                    const inFinishOrder = [...active].sort((a, b) => (a.finishing_position || 99) - (b.finishing_position || 99));
                     const allTop3 = shortDogs.length === 3 && shortDogs.every(d => d.finishing_position <= 3);
                     const allTop4 = shortDogs.length === 3 && shortDogs.every(d => d.finishing_position <= 4);
-                    const badge = allTop3
-                        ? '<span class="bg-emerald-700/80 text-emerald-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 3</span>'
-                        : allTop4
-                            ? '<span class="bg-blue-700/80 text-blue-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 4</span>'
-                            : '<span class="bg-zinc-700/60 text-zinc-400 px-1.5 py-0.5 rounded text-[9px]">✗ miss</span>';
-                    const dogsHtml = [...shortDogs.sort((a, b) => a.finishing_position - b.finishing_position).map(d =>
-                        `<span class="text-emerald-300">${d.dog_name} $${d.starting_price.toFixed(2)} (${posIcon(d.finishing_position)})</span>`
-                    ), ...otherDogs.map(d =>
-                        `<span class="text-zinc-500">${d.dog_name} $${d.starting_price.toFixed(2)} (${posIcon(d.finishing_position)})</span>`
-                    )].join('<span class="text-zinc-700 mx-1">·</span>');
+                    // Show both badges if both hit (all top-3 implies all top-4)
+                    let badges = '';
+                    if (allTop3) badges += '<span class="bg-emerald-700/80 text-emerald-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 3</span>';
+                    if (allTop4) badges += '<span class="bg-blue-700/80 text-blue-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 4</span>';
+                    if (!badges) badges = '<span class="bg-zinc-700/60 text-zinc-400 px-1.5 py-0.5 rounded text-[9px]">✗ miss</span>';
+                    const dogsHtml = inFinishOrder.map(d => {
+                        const sp = `$${(d.starting_price || 0).toFixed(2)}`;
+                        return shortDogSet.has(d.id)
+                            ? `<span class="text-emerald-300">${d.dog_name} ${sp} (${posIcon(d.finishing_position)})</span>`
+                            : `<span class="text-zinc-500">${d.dog_name} ${sp} (${posIcon(d.finishing_position)})</span>`;
+                    }).join('<span class="text-zinc-700 mx-1">·</span>');
                     return `<div class="px-4 py-2.5 hover:bg-cyan-900/20">
                         <div class="flex items-center justify-between gap-2 mb-1">
                             <span class="font-semibold text-white/80">${race.meeting_name} R${race.race_number}</span>
-                            <div class="flex items-center gap-1.5">${badge}<span class="text-zinc-500">${fmtDate(race.race_time)}</span></div>
+                            <div class="flex items-center gap-1">${badges}<span class="text-zinc-500 ml-1">${fmtDate(race.race_time)}</span></div>
                         </div>
                         <div class="flex flex-wrap gap-x-1 gap-y-0.5 text-[10px]">${dogsHtml}</div>
                     </div>`;
