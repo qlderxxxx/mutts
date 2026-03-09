@@ -1285,12 +1285,15 @@
             if (ml3El) ml3El.textContent = ml3Total;
             if (ml4El) ml4El.textContent = ml4Total;
 
-            // Drop plain races (races without any pattern)
-            let flagged = tagged.filter(t => t.lt || t.ts || t.ml3 || t.ml4);
+            let flagged;
 
             // Filter by selected summary box (live view)
             if (sixRunnersLivePatternFilter !== 'all') {
-                flagged = flagged.filter(t => t[sixRunnersLivePatternFilter]);
+                // If a filter is active, strictly show races matching that filter
+                flagged = tagged.filter(t => t[sixRunnersLivePatternFilter]);
+            } else {
+                // If NO filter is active, show ALL 6-runner races (including plain ones)
+                flagged = tagged;
             }
 
             if (flagged.length === 0) {
@@ -1300,10 +1303,14 @@
             }
             emptyState.classList.add('hidden');
 
-            // Sort: lt > ml3 > ml4 > ts, then by time
+            // Sort: lt > ml3 > ml4 > ts > plain, then by time
             flagged.sort((a, b) => {
-                const rankA = a.lt ? 0 : (a.ml3 ? 1 : (a.ml4 ? 2 : (a.ts ? 3 : 4)));
-                const rankB = b.lt ? 0 : (b.ml3 ? 1 : (b.ml4 ? 2 : (b.ts ? 3 : 4)));
+                const isPlainA = !a.lt && !a.ts && !a.ml3 && !a.ml4;
+                const isPlainB = !b.lt && !b.ts && !b.ml3 && !b.ml4;
+
+                const rankA = isPlainA ? 5 : (a.lt ? 0 : (a.ml3 ? 1 : (a.ml4 ? 2 : 3)));
+                const rankB = isPlainB ? 5 : (b.lt ? 0 : (b.ml3 ? 1 : (b.ml4 ? 2 : 3)));
+
                 if (rankA !== rankB) return rankA - rankB;
                 return a.race.timestamp - b.race.timestamp;
             });
