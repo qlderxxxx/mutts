@@ -1285,27 +1285,30 @@
             if (ml3El) ml3El.textContent = ml3Total;
             if (ml4El) ml4El.textContent = ml4Total;
 
+            // Drop plain races (races without any pattern)
+            let flagged = tagged.filter(t => t.lt || t.ts || t.ml3 || t.ml4);
+
             // Filter by selected summary box (live view)
             if (sixRunnersLivePatternFilter !== 'all') {
-                tagged = tagged.filter(t => t[sixRunnersLivePatternFilter]);
+                flagged = flagged.filter(t => t[sixRunnersLivePatternFilter]);
             }
 
-            if (tagged.length === 0) {
+            if (flagged.length === 0) {
                 container.innerHTML = '';
                 emptyState.classList.remove('hidden');
                 return;
             }
             emptyState.classList.add('hidden');
 
-            // Sort: lt > ml3 > ml4 > ts > plain, then by time
-            tagged.sort((a, b) => {
+            // Sort: lt > ml3 > ml4 > ts, then by time
+            flagged.sort((a, b) => {
                 const rankA = a.lt ? 0 : (a.ml3 ? 1 : (a.ml4 ? 2 : (a.ts ? 3 : 4)));
                 const rankB = b.lt ? 0 : (b.ml3 ? 1 : (b.ml4 ? 2 : (b.ts ? 3 : 4)));
                 if (rankA !== rankB) return rankA - rankB;
                 return a.race.timestamp - b.race.timestamp;
             });
 
-            container.innerHTML = tagged.map(({ race, lt, ts, ml3, ml4 }) => {
+            container.innerHTML = flagged.map(({ race, lt, ts, ml3, ml4 }) => {
                 return createSixRunnersCard(race, { lt, ts, ml3, ml4 });
             }).join('');
         }
