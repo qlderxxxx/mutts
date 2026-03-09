@@ -628,9 +628,9 @@
                                     expand</span>
                             </div>
                             <p class="text-[11px] text-zinc-400 mb-3">Do the 4 shorter dogs fill the top positions?</p>
-                            <div class="grid grid-cols-3 gap-3 text-center mb-3">
+                            <div class="grid grid-cols-4 gap-2 text-center mb-3">
                                 <div class="bg-black/30 rounded-lg p-3">
-                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">Total Races</div>
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">Total</div>
                                     <div class="text-xl font-bold text-violet-300" id="ltStatTotal">-</div>
                                 </div>
                                 <div class="bg-black/30 rounded-lg p-3">
@@ -643,9 +643,15 @@
                                     <div class="text-xl font-bold text-emerald-300" id="ltStatTop4Pct">-</div>
                                     <div class="text-[10px] text-zinc-500" id="ltStatTop4Raw">-</div>
                                 </div>
+                                <div class="bg-black/30 rounded-lg p-3">
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">Top 4 Only</div>
+                                    <div class="text-xl font-bold text-blue-400" id="ltStatTop4OnlyPct">-</div>
+                                    <div class="text-[10px] text-zinc-500" id="ltStatTop4OnlyRaw">-</div>
+                                </div>
                             </div>
-                            <p class="text-[10px] text-zinc-500">Fill Top 3 = 3+ of 4 short dogs finish positions 1-3
-                                &nbsp;|&nbsp; Fill Top 4 = all 4 short dogs finish positions 1-4</p>
+                            <p class="text-[10px] text-zinc-500">Fill Top 3 = 3+ of 4 short dogs in positions 1-3
+                                &nbsp;|&nbsp; Fill Top 4 = all 4 sweep &nbsp;|&nbsp; Top 4 Only = all 4 finish ≤4 but
+                                not top 3 sweep</p>
                         </div>
                         <!-- Expanded Race List -->
                         <div id="ltRaceList"
@@ -664,24 +670,29 @@
                             </div>
                             <p class="text-[11px] text-zinc-400 mb-3">Do all 3 short dogs finish in the top positions?
                             </p>
-                            <div class="grid grid-cols-3 gap-3 text-center mb-3">
+                            <div class="grid grid-cols-4 gap-2 text-center mb-3">
                                 <div class="bg-black/30 rounded-lg p-3">
-                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">Total Races</div>
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">Total</div>
                                     <div class="text-xl font-bold text-cyan-300" id="tsStatTotal">-</div>
                                 </div>
                                 <div class="bg-black/30 rounded-lg p-3">
-                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">All 3 in Top 3</div>
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">All 3 Top 3</div>
                                     <div class="text-xl font-bold text-emerald-400" id="tsStatTop3Pct">-</div>
                                     <div class="text-[10px] text-zinc-500" id="tsStatTop3Raw">-</div>
                                 </div>
                                 <div class="bg-black/30 rounded-lg p-3">
-                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">All 3 in Top 4</div>
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">All 3 Top 4</div>
                                     <div class="text-xl font-bold text-emerald-300" id="tsStatTop4Pct">-</div>
                                     <div class="text-[10px] text-zinc-500" id="tsStatTop4Raw">-</div>
                                 </div>
+                                <div class="bg-black/30 rounded-lg p-3">
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">Top 4 Only</div>
+                                    <div class="text-xl font-bold text-blue-400" id="tsStatTop4OnlyPct">-</div>
+                                    <div class="text-[10px] text-zinc-500" id="tsStatTop4OnlyRaw">-</div>
+                                </div>
                             </div>
-                            <p class="text-[10px] text-zinc-500">All 3 in Top 3 = short dogs hold positions 1, 2 &amp; 3
-                                &nbsp;|&nbsp; All 3 in Top 4 = all 3 finish within 4th</p>
+                            <p class="text-[10px] text-zinc-500">All 3 Top 3 = clean sweep &nbsp;|&nbsp; All 3 Top 4 =
+                                all finish ≤4 &nbsp;|&nbsp; Top 4 Only = in top 4 but one slipped to 4th</p>
                         </div>
                         <!-- Expanded Race List -->
                         <div id="tsRaceList"
@@ -1205,29 +1216,33 @@
             const tsRaces = cachedSixRunnersHistory.filter(r => isThreeShortRace(r));
 
             // Long-tail: do the 4 short dogs fill the top positions?
-            let ltTop3 = 0, ltTop4 = 0;
+            let ltTop3 = 0, ltTop4 = 0, ltTop4Only = 0;
             ltRaces.forEach(race => {
                 const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
                 const sorted = [...active].sort((a, b) => (a.starting_price || 999) - (b.starting_price || 999));
-                const shortDogs = sorted.slice(0, 4); // The 4 with lowest SP
+                const shortDogs = sorted.slice(0, 4);
                 const inTop3Count = shortDogs.filter(d => d.finishing_position <= 3).length;
                 const allInTop4 = shortDogs.every(d => d.finishing_position <= 4);
                 if (inTop3Count >= 3) ltTop3++;
+                if (allInTop4 && inTop3Count >= 3) { /* counted above */ }
+                else if (allInTop4) { ltTop4Only++; }
                 if (allInTop4) ltTop4++;
             });
 
             // Three-short: do all 3 short dogs finish top 3 / top 4?
-            let tsTop3 = 0, tsTop4 = 0;
+            let tsTop3 = 0, tsTop4 = 0, tsTop4Only = 0;
             tsRaces.forEach(race => {
                 const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
                 const shortDogs = active.filter(r => r.starting_price < 10);
                 if (shortDogs.length !== 3) return;
-                if (shortDogs.every(d => d.finishing_position <= 3)) tsTop3++;
-                if (shortDogs.every(d => d.finishing_position <= 4)) tsTop4++;
+                const allTop3 = shortDogs.every(d => d.finishing_position <= 3);
+                const allTop4 = shortDogs.every(d => d.finishing_position <= 4);
+                if (allTop3) tsTop3++;
+                if (allTop4) tsTop4++;
+                if (allTop4 && !allTop3) tsTop4Only++;
             });
 
             const pct = (n, d) => d > 0 ? `${((n / d) * 100).toFixed(1)}%` : 'N/A';
-
             const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
             // Long-tail
@@ -1236,6 +1251,8 @@
             set('ltStatTop3Raw', `${ltTop3} / ${ltRaces.length}`);
             set('ltStatTop4Pct', pct(ltTop4, ltRaces.length));
             set('ltStatTop4Raw', `${ltTop4} / ${ltRaces.length}`);
+            set('ltStatTop4OnlyPct', pct(ltTop4Only, ltRaces.length));
+            set('ltStatTop4OnlyRaw', `${ltTop4Only} / ${ltRaces.length}`);
 
             // Three-short
             set('tsStatTotal', tsRaces.length);
@@ -1243,6 +1260,8 @@
             set('tsStatTop3Raw', `${tsTop3} / ${tsRaces.length}`);
             set('tsStatTop4Pct', pct(tsTop4, tsRaces.length));
             set('tsStatTop4Raw', `${tsTop4} / ${tsRaces.length}`);
+            set('tsStatTop4OnlyPct', pct(tsTop4Only, tsRaces.length));
+            set('tsStatTop4OnlyRaw', `${tsTop4Only} / ${tsRaces.length}`);
 
             // Build expandable race lists
             const posIcon = (p) => {
