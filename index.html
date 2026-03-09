@@ -1304,30 +1304,57 @@
             if (tsListEl) {
                 tsListEl.innerHTML = tsRaces.map(race => {
                     const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
-                    const shortDogSet = new Set(active.filter(r => r.starting_price < 10).map(d => d.id));
-                    const shortDogs = active.filter(r => r.starting_price < 10);
-                    const inFinishOrder = [...active].sort((a, b) => (a.finishing_position || 99) - (b.finishing_position || 99));
-                    const fp = (d) => parseInt(d.finishing_position, 10);
-                    const allTop3 = shortDogs.length === 3 && shortDogs.every(d => fp(d) >= 1 && fp(d) <= 3);
-                    const allTop4 = shortDogs.length === 3 && shortDogs.every(d => fp(d) >= 1 && fp(d) <= 4);
-                    // Single badge: TOP 3 (green) > TOP 4 WIN (amber) > miss (grey)
-                    const badge = allTop3
-                        ? '<span class="bg-emerald-700/80 text-emerald-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 3</span>'
-                        : allTop4
-                            ? '<span class="bg-amber-600/80 text-amber-100 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ IN TOP 4</span>'
-                            : '<span class="bg-zinc-700/60 text-zinc-400 px-1.5 py-0.5 rounded text-[9px]">✗ miss</span>';
+                    const byPrice = [...active].sort((a, b) => (a.starting_price || 999) - (b.starting_price || 999));
+                    const inFinishOrder = [...active].sort((a, b) => (parseInt(a.finishing_position, 10) || 99) - (parseInt(b.finishing_position, 10) || 99));
+                    const fp = d => { const v = parseInt(d.finishing_position, 10); return isNaN(v) ? 99 : v; };
+
+                    // top 4 by odds (the 4 cheapest-priced runners)
+                    const top4market = byPrice.slice(0, 4);
+                    const top4marketSet = new Set(top4market.map(d => d.id));
+                    const top4filledTop4 = top4market.every(d => fp(d) <= 4);
+
+                    // top 3 by odds (the 3 short dogs)
+                    const top3market = byPrice.slice(0, 3);
+                    const top3marketSet = new Set(top3market.map(d => d.id));
+                    const top3inTop3 = top3market.every(d => fp(d) <= 3);
+                    const top3inTop4 = top3market.every(d => fp(d) <= 4);
+
+                    // Row 1 badge: top 4 fill
+                    const badge4 = top4filledTop4
+                        ? '<span class="bg-emerald-700/80 text-emerald-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 4 IN TOP 4</span>'
+                        : '<span class="bg-zinc-700/60 text-zinc-500 px-1.5 py-0.5 rounded text-[9px]">✗ top 4 miss</span>';
+
+                    // Row 2 badges: top 3 results
+                    const b3 = top3inTop3
+                        ? '<span class="bg-emerald-600/80 text-emerald-100 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 3</span>'
+                        : '<span class="bg-zinc-700/50 text-zinc-500 px-1.5 py-0.5 rounded text-[9px]">✗ top 3</span>';
+                    const b4 = top3inTop4
+                        ? '<span class="bg-amber-600/80 text-amber-100 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ IN TOP 4</span>'
+                        : '<span class="bg-zinc-700/50 text-zinc-500 px-1.5 py-0.5 rounded text-[9px]">✗ top 4</span>';
+
                     const dogsHtml = inFinishOrder.map(d => {
                         const sp = `$${(d.starting_price || 0).toFixed(2)}`;
-                        return shortDogSet.has(d.id)
-                            ? `<span class="text-emerald-300">${d.dog_name} ${sp} (${posIcon(d.finishing_position)})</span>`
-                            : `<span class="text-zinc-500">${d.dog_name} ${sp} (${posIcon(d.finishing_position)})</span>`;
+                        const isShort = top3marketSet.has(d.id);
+                        const is4th = top4marketSet.has(d.id) && !isShort;
+                        return isShort
+                            ? `<span class="text-emerald-300">${d.dog_name} ${sp} (${posIcon(fp(d))})</span>`
+                            : is4th
+                                ? `<span class="text-sky-300">${d.dog_name} ${sp} (${posIcon(fp(d))})</span>`
+                                : `<span class="text-zinc-500">${d.dog_name} ${sp} (${posIcon(fp(d))})</span>`;
                     }).join('<span class="text-zinc-700 mx-1">·</span>');
-                    return `<div class="px-4 py-2.5 hover:bg-cyan-900/20">
-                        <div class="flex items-center justify-between gap-2 mb-1">
-                            <span class="font-semibold text-white/80">${race.meeting_name} R${race.race_number}</span>
-                            <div class="flex items-center gap-1">${badge}<span class="text-zinc-500 ml-1">${fmtDate(race.race_time)}</span></div>
+
+                    return `<div class="px-4 py-3 hover:bg-cyan-900/20 space-y-1">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-semibold text-white/80 text-[11px]">${race.meeting_name} R${race.race_number}</span>
+                            <span class="text-zinc-500 text-[10px]">${fmtDate(race.race_time)}</span>
                         </div>
-                        <div class="flex flex-wrap gap-x-1 gap-y-0.5 text-[10px]">${dogsHtml}</div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[9px] text-zinc-500 w-14 shrink-0">Top 4 odds</span>${badge4}
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[9px] text-zinc-500 w-14 shrink-0">Top 3 odds</span>${b3}${b4}
+                        </div>
+                        <div class="flex flex-wrap gap-x-1 gap-y-0.5 text-[10px] pt-0.5">${dogsHtml}</div>
                     </div>`;
                 }).join('') || '<div class="px-4 py-4 text-zinc-500 text-center">No races found</div>';
             }
