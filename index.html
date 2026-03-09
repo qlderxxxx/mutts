@@ -556,9 +556,9 @@
             <!-- Summary Stats Bar -->
             <div id="sixRunnersSummary" class="grid grid-cols-2 gap-3 mb-2">
                 <div class="bg-violet-900/30 backdrop-blur-lg rounded-lg p-3 border border-violet-700/40">
-                    <div class="text-[10px] font-bold text-violet-300 uppercase mb-1">🎯 2 Long-Tail ($30+)</div>
+                    <div class="text-[10px] font-bold text-violet-300 uppercase mb-1">🎯 2 Long-Tail ($20+)</div>
                     <div class="text-2xl font-bold text-violet-300" id="sixLongTailCount">-</div>
-                    <div class="text-[10px] text-zinc-400 mt-1">2 dogs ≥$30, rest short</div>
+                    <div class="text-[10px] text-zinc-400 mt-1">2 dogs ≥$20, rest short</div>
                 </div>
                 <div class="bg-cyan-900/30 backdrop-blur-lg rounded-lg p-3 border border-cyan-700/40">
                     <div class="text-[10px] font-bold text-cyan-300 uppercase mb-1">⚡ 3 Short Dogs (&lt;$10)</div>
@@ -807,8 +807,7 @@
 
         // ===================== 6 Runners Test Logic =====================
 
-        // Pattern A: 2 dogs with odds >= $30, rest are noticeably shorter
-        // The "rest" should average under $15 to ensure a clear contrast
+        // Pattern A: 2 dogs with odds >= $20, rest are noticeably shorter
         function isLongTailRace(race) {
             if (race.active_runner_count !== 6) return false;
             const activeRunners = (race.runners || []).filter(r => !r.is_scratched);
@@ -821,14 +820,14 @@
             if (runnersWithOdds.length < 6) return false;
 
             const sorted = [...runnersWithOdds].sort((a, b) => getOdds(a) - getOdds(b));
-            // The 2 longest-priced dogs must both be >= $30
+            // The 2 longest-priced dogs must both be >= $20
             const longTail1 = getOdds(sorted[4]);
             const longTail2 = getOdds(sorted[5]);
-            if (longTail1 < 30 || longTail2 < 30) return false;
+            if (longTail1 < 20 || longTail2 < 20) return false;
 
-            // The rest (4 shortest) should all be under $20 to ensure a real gap
+            // The rest (4 shortest) should all be under $14 to ensure a real gap
             const shortest4 = sorted.slice(0, 4);
-            if (!shortest4.every(r => getOdds(r) < 20)) return false;
+            if (!shortest4.every(r => getOdds(r) < 14)) return false;
 
             return true;
         }
@@ -865,7 +864,7 @@
             const cardClass = isPlain
                 ? 'bg-zinc-800 border border-zinc-600/60 hover:bg-zinc-700 hover:border-zinc-500'
                 : (isLongTail ? 'longtail-card' : 'threeshort-card');
-            const badgeText = isPlain ? '' : (isLongTail ? '\uD83C\uDFAF 2 LONG-TAIL ($30+)' : '\u26A1 3 SHORT DOGS');
+            const badgeText = isPlain ? '' : (isLongTail ? '\uD83C\uDFAF 2 LONG-TAIL ($20+)' : '\u26A1 3 SHORT DOGS');
             const badgeColor = isLongTail ? 'bg-violet-900' : 'bg-cyan-800';
 
             // Sort: by odds ascending so the pattern is visually clear
