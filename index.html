@@ -1210,8 +1210,9 @@
                 const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
                 const sorted = [...active].sort((a, b) => (a.starting_price || 999) - (b.starting_price || 999));
                 const shortDogs = sorted.slice(0, 4);
-                const inTop3Count = shortDogs.filter(d => d.finishing_position <= 3).length;
-                const allInTop4 = shortDogs.every(d => d.finishing_position <= 4);
+                const fpp = (d) => parseInt(d.finishing_position, 10);
+                const inTop3Count = shortDogs.filter(d => fpp(d) >= 1 && fpp(d) <= 3).length;
+                const allInTop4 = shortDogs.every(d => fpp(d) >= 1 && fpp(d) <= 4);
                 if (inTop3Count >= 3) ltTop3++;
                 if (allInTop4 && inTop3Count >= 3) { /* counted above */ }
                 else if (allInTop4) { ltTop4Only++; }
@@ -1224,8 +1225,9 @@
                 const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
                 const shortDogs = active.filter(r => r.starting_price < 10);
                 if (shortDogs.length !== 3) return;
-                const allTop3 = shortDogs.every(d => d.finishing_position <= 3);
-                const allTop4 = shortDogs.every(d => d.finishing_position <= 4);
+                const fpx = (d) => parseInt(d.finishing_position, 10);
+                const allTop3 = shortDogs.every(d => fpx(d) >= 1 && fpx(d) <= 3);
+                const allTop4 = shortDogs.every(d => fpx(d) >= 1 && fpx(d) <= 4);
                 if (allTop3) tsTop3++;
                 if (allTop4) tsTop4++;
                 if (allTop4 && !allTop3) tsTop4Only++;
@@ -1273,8 +1275,9 @@
                     const longDogSet = new Set(byPrice.slice(4).map(d => d.id));
                     const inFinishOrder = [...active].sort((a, b) => (a.finishing_position || 99) - (b.finishing_position || 99));
                     const shortDogs = byPrice.slice(0, 4);
-                    const inTop3Count = shortDogs.filter(d => d.finishing_position <= 3).length;
-                    const allInTop4 = shortDogs.every(d => d.finishing_position <= 4);
+                    const fpl = (d) => parseInt(d.finishing_position, 10);
+                    const inTop3Count = shortDogs.filter(d => fpl(d) >= 1 && fpl(d) <= 3).length;
+                    const allInTop4 = shortDogs.every(d => fpl(d) >= 1 && fpl(d) <= 4);
                     // Show both badges if both hit
                     let badges = '';
                     if (inTop3Count >= 3) badges += '<span class="bg-blue-700/80 text-blue-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 3</span>';
@@ -1304,8 +1307,9 @@
                     const shortDogSet = new Set(active.filter(r => r.starting_price < 10).map(d => d.id));
                     const shortDogs = active.filter(r => r.starting_price < 10);
                     const inFinishOrder = [...active].sort((a, b) => (a.finishing_position || 99) - (b.finishing_position || 99));
-                    const allTop3 = shortDogs.length === 3 && shortDogs.every(d => d.finishing_position <= 3);
-                    const allTop4 = shortDogs.length === 3 && shortDogs.every(d => d.finishing_position <= 4);
+                    const fp = (d) => parseInt(d.finishing_position, 10);
+                    const allTop3 = shortDogs.length === 3 && shortDogs.every(d => fp(d) >= 1 && fp(d) <= 3);
+                    const allTop4 = shortDogs.length === 3 && shortDogs.every(d => fp(d) >= 1 && fp(d) <= 4);
                     // Single badge: TOP 3 (green) > TOP 4 WIN (amber) > miss (grey)
                     const badge = allTop3
                         ? '<span class="bg-emerald-700/80 text-emerald-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 3</span>'
