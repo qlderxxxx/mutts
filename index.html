@@ -627,25 +627,30 @@
                                 <span class="text-zinc-400 text-xs transition-transform duration-200" id="ltChevron">▼
                                     expand</span>
                             </div>
-                            <p class="text-[11px] text-zinc-400 mb-3">Do the 4 shorter dogs fill the top positions?</p>
-                            <div class="grid grid-cols-3 gap-3 text-center mb-3">
+                            <p class="text-[11px] text-zinc-400 mb-3">Do the shorter dogs fill the top positions?</p>
+                            <div class="grid grid-cols-4 gap-2 text-center mb-3">
                                 <div class="bg-black/30 rounded-lg p-3">
                                     <div class="text-[10px] text-zinc-400 uppercase mb-1">Total Races</div>
                                     <div class="text-xl font-bold text-violet-300" id="ltStatTotal">-</div>
                                 </div>
                                 <div class="bg-black/30 rounded-lg p-3">
-                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">Fill Top 3</div>
-                                    <div class="text-xl font-bold text-emerald-400" id="ltStatTop3Pct">-</div>
-                                    <div class="text-[10px] text-zinc-500" id="ltStatTop3Raw">-</div>
-                                </div>
-                                <div class="bg-black/30 rounded-lg p-3">
-                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">Fill Top 4</div>
-                                    <div class="text-xl font-bold text-emerald-300" id="ltStatTop4Pct">-</div>
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">All 4 → Top 4</div>
+                                    <div class="text-xl font-bold text-emerald-400" id="ltStatTop4Pct">-</div>
                                     <div class="text-[10px] text-zinc-500" id="ltStatTop4Raw">-</div>
                                 </div>
+                                <div class="bg-black/30 rounded-lg p-3">
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">3 Short → Top 3</div>
+                                    <div class="text-xl font-bold text-emerald-300" id="ltStat3Top3Pct">-</div>
+                                    <div class="text-[10px] text-zinc-500" id="ltStat3Top3Raw">-</div>
+                                </div>
+                                <div class="bg-black/30 rounded-lg p-3">
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">3 Short → Top 4</div>
+                                    <div class="text-xl font-bold text-amber-400" id="ltStat3Top4Pct">-</div>
+                                    <div class="text-[10px] text-zinc-500" id="ltStat3Top4Raw">-</div>
+                                </div>
                             </div>
-                            <p class="text-[10px] text-zinc-500">Fill Top 3 = 3+ of 4 short dogs in positions 1-3
-                                &nbsp;|&nbsp; Fill Top 4 = all 4 short dogs finish within 4th</p>
+                            <p class="text-[10px] text-zinc-500">All 4 → Top 4 = full sweep &nbsp;|&nbsp; 3 Short = the
+                                3 cheapest dogs specifically</p>
                         </div>
                         <!-- Expanded Race List -->
                         <div id="ltRaceList"
@@ -1204,19 +1209,17 @@
             const ltRaces = cachedSixRunnersHistory.filter(r => isLongTailRace(r));
             const tsRaces = cachedSixRunnersHistory.filter(r => isThreeShortRace(r));
 
-            // Long-tail: do the 4 short dogs fill the top positions?
-            let ltTop3 = 0, ltTop4 = 0, ltTop4Only = 0;
+            // Long-tail stats: all-4 sweep + 3-shortest metrics
+            let ltTop4 = 0, lt3Top3 = 0, lt3Top4 = 0;
             ltRaces.forEach(race => {
                 const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
                 const sorted = [...active].sort((a, b) => (a.starting_price || 999) - (b.starting_price || 999));
-                const shortDogs = sorted.slice(0, 4);
-                const fpp = (d) => parseInt(d.finishing_position, 10);
-                const inTop3Count = shortDogs.filter(d => fpp(d) >= 1 && fpp(d) <= 3).length;
-                const allInTop4 = shortDogs.every(d => fpp(d) >= 1 && fpp(d) <= 4);
-                if (inTop3Count >= 3) ltTop3++;
-                if (allInTop4 && inTop3Count >= 3) { /* counted above */ }
-                else if (allInTop4) { ltTop4Only++; }
-                if (allInTop4) ltTop4++;
+                const fp = d => { const v = parseInt(d.finishing_position, 10); return isNaN(v) ? 99 : v; };
+                const all4 = sorted.slice(0, 4);
+                const top3dogs = sorted.slice(0, 3);
+                if (all4.every(d => fp(d) <= 4)) ltTop4++;
+                if (top3dogs.every(d => fp(d) <= 3)) lt3Top3++;
+                if (top3dogs.every(d => fp(d) <= 4)) lt3Top4++;
             });
 
             // Three-short: do all 3 short dogs finish top 3 / top 4?
@@ -1238,12 +1241,12 @@
 
             // Long-tail
             set('ltStatTotal', ltRaces.length);
-            set('ltStatTop3Pct', pct(ltTop3, ltRaces.length));
-            set('ltStatTop3Raw', `${ltTop3} / ${ltRaces.length}`);
             set('ltStatTop4Pct', pct(ltTop4, ltRaces.length));
             set('ltStatTop4Raw', `${ltTop4} / ${ltRaces.length}`);
-            set('ltStatTop4OnlyPct', pct(ltTop4Only, ltRaces.length));
-            set('ltStatTop4OnlyRaw', `${ltTop4Only} / ${ltRaces.length}`);
+            set('ltStat3Top3Pct', pct(lt3Top3, ltRaces.length));
+            set('ltStat3Top3Raw', `${lt3Top3} / ${ltRaces.length}`);
+            set('ltStat3Top4Pct', pct(lt3Top4, ltRaces.length));
+            set('ltStat3Top4Raw', `${lt3Top4} / ${ltRaces.length}`);
 
             // Three-short
             set('tsStatTotal', tsRaces.length);
@@ -1271,28 +1274,51 @@
                 ltListEl.innerHTML = ltRaces.map(race => {
                     const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
                     const byPrice = [...active].sort((a, b) => (a.starting_price || 999) - (b.starting_price || 999));
-                    const shortDogSet = new Set(byPrice.slice(0, 4).map(d => d.id));
-                    const longDogSet = new Set(byPrice.slice(4).map(d => d.id));
-                    const inFinishOrder = [...active].sort((a, b) => (a.finishing_position || 99) - (b.finishing_position || 99));
-                    const shortDogs = byPrice.slice(0, 4);
-                    const fpl = (d) => parseInt(d.finishing_position, 10);
-                    const inTop3Count = shortDogs.filter(d => fpl(d) >= 1 && fpl(d) <= 3).length;
-                    const allInTop4 = shortDogs.every(d => fpl(d) >= 1 && fpl(d) <= 4);
-                    // Show both badges if both hit
-                    let badges = '';
-                    if (inTop3Count >= 3) badges += '<span class="bg-blue-700/80 text-blue-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 3</span>';
-                    if (allInTop4) badges += '<span class="bg-emerald-700/80 text-emerald-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 4</span>';
-                    if (!badges) badges = '<span class="bg-zinc-700/60 text-zinc-400 px-1.5 py-0.5 rounded text-[9px]">✗ miss</span>';
+                    const fp = d => { const v = parseInt(d.finishing_position, 10); return isNaN(v) ? 99 : v; };
+                    const inFinishOrder = [...active].sort((a, b) => fp(a) - fp(b));
+
+                    // All 4 short dogs (top 4 by price)
+                    const short4 = byPrice.slice(0, 4);
+                    const short4Set = new Set(short4.map(d => d.id));
+                    const allInTop4 = short4.every(d => fp(d) <= 4);
+
+                    // Top 3 shortest dogs only
+                    const short3 = byPrice.slice(0, 3);
+                    const short3Set = new Set(short3.map(d => d.id));
+                    const top3inTop3 = short3.every(d => fp(d) <= 3);
+                    const top3inTop4 = short3.every(d => fp(d) <= 4);
+
+                    // Row 1: all 4 fill top 4?
+                    const b4all = allInTop4
+                        ? '<span class="bg-emerald-700/80 text-emerald-200 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ ALL 4 IN TOP 4</span>'
+                        : '<span class="bg-zinc-700/60 text-zinc-500 px-1.5 py-0.5 rounded text-[9px]">✗ top 4 miss</span>';
+
+                    // Row 2: top 3 in top 3 / top 4?
+                    const b3 = top3inTop3
+                        ? '<span class="bg-emerald-600/80 text-emerald-100 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 3</span>'
+                        : '<span class="bg-zinc-700/50 text-zinc-500 px-1.5 py-0.5 rounded text-[9px]">✗ top 3</span>';
+                    const b4 = top3inTop4
+                        ? '<span class="bg-amber-600/80 text-amber-100 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ IN TOP 4</span>'
+                        : '<span class="bg-zinc-700/50 text-zinc-500 px-1.5 py-0.5 rounded text-[9px]">✗ top 4</span>';
+
                     const dogsHtml = inFinishOrder.map(d => {
                         const sp = `$${(d.starting_price || 0).toFixed(2)}`;
-                        return shortDogSet.has(d.id)
-                            ? `<span class="text-emerald-300">${d.dog_name} ${sp} (${posIcon(d.finishing_position)})</span>`
-                            : `<span class="text-red-300/60">${d.dog_name} ${sp} (${posIcon(d.finishing_position)})</span>`;
+                        const is3 = short3Set.has(d.id);
+                        const is4 = short4Set.has(d.id) && !is3;
+                        return is3
+                            ? `<span class="text-emerald-300">${d.dog_name} ${sp} (${posIcon(fp(d))})</span>`
+                            : is4
+                                ? `<span class="text-sky-300">${d.dog_name} ${sp} (${posIcon(fp(d))})</span>`
+                                : `<span class="text-red-300/60">${d.dog_name} ${sp} (${posIcon(fp(d))})</span>`;
                     }).join('<span class="text-zinc-600 mx-1">·</span>');
+
                     return `<div class="px-4 py-2.5 hover:bg-violet-900/20">
                         <div class="flex items-center justify-between gap-2 mb-1">
-                            <span class="font-semibold text-white/80">${race.meeting_name} R${race.race_number}</span>
-                            <div class="flex items-center gap-1">${badges}<span class="text-zinc-500 ml-1">${fmtDate(race.race_time)}</span></div>
+                            <span class="font-semibold text-white/80 text-[11px]">${race.meeting_name} R${race.race_number}</span>
+                            <div class="flex items-center gap-1 flex-wrap justify-end">
+                                ${b4all}${b3}${b4}
+                                <span class="text-zinc-500 ml-1">${fmtDate(race.race_time)}</span>
+                            </div>
                         </div>
                         <div class="flex flex-wrap gap-x-1 gap-y-0.5 text-[10px]">${dogsHtml}</div>
                     </div>`;
@@ -1343,18 +1369,15 @@
                                 : `<span class="text-zinc-500">${d.dog_name} ${sp} (${posIcon(fp(d))})</span>`;
                     }).join('<span class="text-zinc-700 mx-1">·</span>');
 
-                    return `<div class="px-4 py-3 hover:bg-cyan-900/20 space-y-1">
-                        <div class="flex items-center justify-between gap-2">
+                    return `<div class="px-4 py-2.5 hover:bg-cyan-900/20">
+                        <div class="flex items-center justify-between gap-2 mb-1">
                             <span class="font-semibold text-white/80 text-[11px]">${race.meeting_name} R${race.race_number}</span>
-                            <span class="text-zinc-500 text-[10px]">${fmtDate(race.race_time)}</span>
+                            <div class="flex items-center gap-1 flex-wrap justify-end">
+                                ${badge4}${b3}${b4}
+                                <span class="text-zinc-500 ml-1">${fmtDate(race.race_time)}</span>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-[9px] text-zinc-500 w-14 shrink-0">Top 4 odds</span>${badge4}
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-[9px] text-zinc-500 w-14 shrink-0">Top 3 odds</span>${b3}${b4}
-                        </div>
-                        <div class="flex flex-wrap gap-x-1 gap-y-0.5 text-[10px] pt-0.5">${dogsHtml}</div>
+                        <div class="flex flex-wrap gap-x-1 gap-y-0.5 text-[10px]">${dogsHtml}</div>
                     </div>`;
                 }).join('') || '<div class="px-4 py-4 text-zinc-500 text-center">No races found</div>';
             }
