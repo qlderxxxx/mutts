@@ -52,6 +52,42 @@
             }
         }
 
+        .ml3srm-card {
+            background: linear-gradient(135deg, #9f1239 0%, #881337 100%);
+            box-shadow: 0 10px 30px rgba(159, 18, 57, 0.4);
+            animation: pulse-rose 2s ease-in-out infinite;
+        }
+
+        .ml4srm-card {
+            background: linear-gradient(135deg, #c2410c 0%, #9a3412 100%);
+            box-shadow: 0 10px 30px rgba(194, 65, 12, 0.4);
+            animation: pulse-orange 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-rose {
+
+            0%,
+            100% {
+                box-shadow: 0 10px 30px rgba(159, 18, 57, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 15px 40px rgba(159, 18, 57, 0.65);
+            }
+        }
+
+        @keyframes pulse-orange {
+
+            0%,
+            100% {
+                box-shadow: 0 10px 30px rgba(194, 65, 12, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 15px 40px rgba(194, 65, 12, 0.65);
+            }
+        }
+
         body {
             font-family: 'Inter', sans-serif;
             background: #0a0a0a;
@@ -577,6 +613,16 @@
                         <div class="text-2xl font-bold text-cyan-300" id="sixThreeShortCount">-</div>
                         <div class="text-[10px] text-zinc-400 mt-1">3 dogs &lt;$10, rest longer</div>
                     </div>
+                    <div class="bg-rose-900/30 backdrop-blur-lg rounded-lg p-3 border border-rose-700/40">
+                        <div class="text-[10px] font-bold text-rose-300 uppercase mb-1">🧠 ML Top 3 SRM</div>
+                        <div class="text-2xl font-bold text-rose-300" id="sixMl3Count">-</div>
+                        <div class="text-[10px] text-zinc-400 mt-1">4th dog ≥3× price of 3rd</div>
+                    </div>
+                    <div class="bg-orange-900/30 backdrop-blur-lg rounded-lg p-3 border border-orange-700/40">
+                        <div class="text-[10px] font-bold text-orange-300 uppercase mb-1">🧠 ML Top 4 SRM</div>
+                        <div class="text-2xl font-bold text-orange-300" id="sixMl4Count">-</div>
+                        <div class="text-[10px] text-zinc-400 mt-1">5th dog ≥3× price of 4th</div>
+                    </div>
                 </div>
                 <!-- Legend -->
                 <div class="flex flex-wrap gap-3 text-[11px] text-zinc-400">
@@ -584,6 +630,10 @@
                             class="inline-block w-3 h-3 rounded-full bg-violet-500"></span> 2 Long-Tail pattern</span>
                     <span class="flex items-center gap-1.5"><span
                             class="inline-block w-3 h-3 rounded-full bg-cyan-500"></span> 3 Short Dogs pattern</span>
+                    <span class="flex items-center gap-1.5"><span
+                            class="inline-block w-3 h-3 rounded-full bg-rose-500"></span> ML Top 3 SRM</span>
+                    <span class="flex items-center gap-1.5"><span
+                            class="inline-block w-3 h-3 rounded-full bg-orange-500"></span> ML Top 4 SRM</span>
                 </div>
                 <!-- Cards Grid -->
                 <div id="sixRunnersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
@@ -693,6 +743,73 @@
                             class="hidden border-t border-cyan-700/30 max-h-[420px] overflow-y-auto divide-y divide-cyan-900/40 text-xs">
                         </div>
                     </div>
+
+                    <!-- 🧠 ML Top 3 SRM -->
+                    <div class="bg-rose-900/20 border border-rose-700/40 rounded-xl overflow-hidden">
+                        <div class="p-4 cursor-pointer select-none hover:bg-rose-900/30 transition"
+                            onclick="toggleStatsExpand('ml3RaceList', this)">
+                            <div class="flex items-center justify-between mb-1">
+                                <h3 class="text-sm font-bold text-rose-300">🧠 ML Top 3 SRM</h3>
+                                <span class="text-zinc-400 text-xs" id="ml3Chevron">▼ expand</span>
+                            </div>
+                            <p class="text-[11px] text-zinc-400 mb-3">4th cheapest dog is 3× or more the price of the
+                                3rd — clear top-3 cluster</p>
+                            <div class="grid grid-cols-3 gap-3 text-center mb-3">
+                                <div class="bg-black/30 rounded-lg p-3">
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">Total Races</div>
+                                    <div class="text-xl font-bold text-rose-300" id="ml3StatTotal">-</div>
+                                </div>
+                                <div class="bg-black/30 rounded-lg p-3">
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">3 Short → Top 3</div>
+                                    <div class="text-xl font-bold text-emerald-400" id="ml3StatTop3Pct">-</div>
+                                    <div class="text-[10px] text-zinc-500" id="ml3StatTop3Raw">-</div>
+                                </div>
+                                <div class="bg-black/30 rounded-lg p-3">
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">3 Short → Top 4</div>
+                                    <div class="text-xl font-bold text-amber-400" id="ml3StatTop4Pct">-</div>
+                                    <div class="text-[10px] text-zinc-500" id="ml3StatTop4Raw">-</div>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-zinc-500">Signal: 4th dog price ÷ 3rd dog price ≥ 3×</p>
+                        </div>
+                        <div id="ml3RaceList"
+                            class="hidden border-t border-rose-700/30 max-h-[420px] overflow-y-auto divide-y divide-rose-900/40 text-xs">
+                        </div>
+                    </div>
+
+                    <!-- 🧠 ML Top 4 SRM -->
+                    <div class="bg-orange-900/20 border border-orange-700/40 rounded-xl overflow-hidden">
+                        <div class="p-4 cursor-pointer select-none hover:bg-orange-900/30 transition"
+                            onclick="toggleStatsExpand('ml4RaceList', this)">
+                            <div class="flex items-center justify-between mb-1">
+                                <h3 class="text-sm font-bold text-orange-300">🧠 ML Top 4 SRM</h3>
+                                <span class="text-zinc-400 text-xs" id="ml4Chevron">▼ expand</span>
+                            </div>
+                            <p class="text-[11px] text-zinc-400 mb-3">5th cheapest dog is 3× or more the price of the
+                                4th — clear top-4 cluster</p>
+                            <div class="grid grid-cols-3 gap-3 text-center mb-3">
+                                <div class="bg-black/30 rounded-lg p-3">
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">Total Races</div>
+                                    <div class="text-xl font-bold text-orange-300" id="ml4StatTotal">-</div>
+                                </div>
+                                <div class="bg-black/30 rounded-lg p-3">
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">All 4 → Top 4</div>
+                                    <div class="text-xl font-bold text-emerald-400" id="ml4StatTop4Pct">-</div>
+                                    <div class="text-[10px] text-zinc-500" id="ml4StatTop4Raw">-</div>
+                                </div>
+                                <div class="bg-black/30 rounded-lg p-3">
+                                    <div class="text-[10px] text-zinc-400 uppercase mb-1">3 Short → Top 4</div>
+                                    <div class="text-xl font-bold text-amber-400" id="ml4Stat3Top4Pct">-</div>
+                                    <div class="text-[10px] text-zinc-500" id="ml4Stat3Top4Raw">-</div>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-zinc-500">Signal: 5th dog price ÷ 4th dog price ≥ 3×</p>
+                        </div>
+                        <div id="ml4RaceList"
+                            class="hidden border-t border-orange-700/30 max-h-[420px] overflow-y-auto divide-y divide-orange-900/40 text-xs">
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
@@ -964,6 +1081,36 @@
             return shorts.length === 3 && longs.length === 3;
         }
 
+        // Pattern C: ML Top 3 SRM — 4th cheapest dog is 3× or more the price of the 3rd
+        function isMlTop3SrmRace(race) {
+            if (race.active_runner_count !== 6) return false;
+            const activeRunners = (race.runners || []).filter(r => !r.is_scratched);
+            if (activeRunners.length !== 6) return false;
+            const isResulted = race.status === 'resulted' || race.top_2_in_top_2 !== null;
+            const getOdds = r => isResulted ? (r.starting_price || 0) : (r.sportsbet_odds || 0);
+            const withOdds = activeRunners.filter(r => getOdds(r) > 0);
+            if (withOdds.length < 4) return false;
+            const sorted = [...withOdds].sort((a, b) => getOdds(a) - getOdds(b));
+            const o3 = getOdds(sorted[2]);
+            const o4 = getOdds(sorted[3]);
+            return o3 > 0 && o4 / o3 >= 3;
+        }
+
+        // Pattern D: ML Top 4 SRM — 5th cheapest dog is 3× or more the price of the 4th
+        function isMlTop4SrmRace(race) {
+            if (race.active_runner_count !== 6) return false;
+            const activeRunners = (race.runners || []).filter(r => !r.is_scratched);
+            if (activeRunners.length !== 6) return false;
+            const isResulted = race.status === 'resulted' || race.top_2_in_top_2 !== null;
+            const getOdds = r => isResulted ? (r.starting_price || 0) : (r.sportsbet_odds || 0);
+            const withOdds = activeRunners.filter(r => getOdds(r) > 0);
+            if (withOdds.length < 5) return false;
+            const sorted = [...withOdds].sort((a, b) => getOdds(a) - getOdds(b));
+            const o4 = getOdds(sorted[3]);
+            const o5 = getOdds(sorted[4]);
+            return o4 > 0 && o5 / o4 >= 3;
+        }
+
         // Create a 6-runner test card
         function createSixRunnersCard(race, patternType) {
             const runners = race.runners || [];
@@ -972,13 +1119,15 @@
             const getOdds = (r) => isResulted ? r.starting_price : r.sportsbet_odds;
             const isLongTail = patternType === 'longtail';
             const isThreeShort = patternType === 'threeshort';
+            const isMl3 = patternType === 'ml3srm';
+            const isMl4 = patternType === 'ml4srm';
             const isPlain = patternType === 'plain';
 
             const cardClass = isPlain
                 ? 'bg-zinc-800 border border-zinc-600/60 hover:bg-zinc-700 hover:border-zinc-500'
-                : (isLongTail ? 'longtail-card' : 'threeshort-card');
-            const badgeText = isPlain ? '' : (isLongTail ? '\uD83C\uDFAF 2 LONG-TAIL ($20+)' : '\u26A1 3 SHORT DOGS');
-            const badgeColor = isLongTail ? 'bg-violet-900' : 'bg-cyan-800';
+                : (isLongTail ? 'longtail-card' : (isMl3 ? 'ml3srm-card' : (isMl4 ? 'ml4srm-card' : 'threeshort-card')));
+            const badgeText = isPlain ? '' : (isLongTail ? '🎯 2 LONG-TAIL ($20+)' : (isMl3 ? '🧠 ML TOP 3 SRM' : (isMl4 ? '🧠 ML TOP 4 SRM' : '⚡ 3 SHORT DOGS')));
+            const badgeColor = isLongTail ? 'bg-violet-900' : (isMl3 ? 'bg-rose-900' : (isMl4 ? 'bg-orange-900' : 'bg-cyan-800'));
 
             // Sort: by odds ascending so the pattern is visually clear
             const activeRunners = runners.filter(r => !r.is_scratched);
@@ -1110,18 +1259,26 @@
                 races6 = races6.filter(r => r.timestamp > nowMs);
             }
 
-            // Tag each race with matching patterns (all 6-runner races are shown)
+            // Tag each race with matching patterns
             const tagged = races6.map(race => ({
                 race,
                 lt: isLongTailRace(race),
-                ts: isThreeShortRace(race)
+                ts: isThreeShortRace(race),
+                ml3: isMlTop3SrmRace(race),
+                ml4: isMlTop4SrmRace(race)
             }));
 
-            // Update counts (only flagged races)
+            // Update counts
             const ltTotal = tagged.filter(t => t.lt).length;
             const tsTotal = tagged.filter(t => t.ts).length;
+            const ml3Total = tagged.filter(t => t.ml3).length;
+            const ml4Total = tagged.filter(t => t.ml4).length;
             if (ltCount) ltCount.textContent = ltTotal;
             if (tsCount) tsCount.textContent = tsTotal;
+            const ml3El = document.getElementById('sixMl3Count');
+            const ml4El = document.getElementById('sixMl4Count');
+            if (ml3El) ml3El.textContent = ml3Total;
+            if (ml4El) ml4El.textContent = ml4Total;
 
             if (tagged.length === 0) {
                 container.innerHTML = '';
@@ -1130,16 +1287,16 @@
             }
             emptyState.classList.add('hidden');
 
-            // Sort: flagged races first (longtail > threeshort > plain), then by time
+            // Sort: lt > ml3 > ml4 > ts > plain, then by time
             tagged.sort((a, b) => {
-                const rankA = a.lt ? 0 : (a.ts ? 1 : 2);
-                const rankB = b.lt ? 0 : (b.ts ? 1 : 2);
+                const rankA = a.lt ? 0 : (a.ml3 ? 1 : (a.ml4 ? 2 : (a.ts ? 3 : 4)));
+                const rankB = b.lt ? 0 : (b.ml3 ? 1 : (b.ml4 ? 2 : (b.ts ? 3 : 4)));
                 if (rankA !== rankB) return rankA - rankB;
                 return a.race.timestamp - b.race.timestamp;
             });
 
-            container.innerHTML = tagged.map(({ race, lt, ts }) => {
-                const patternType = lt ? 'longtail' : (ts ? 'threeshort' : 'plain');
+            container.innerHTML = tagged.map(({ race, lt, ts, ml3, ml4 }) => {
+                const patternType = lt ? 'longtail' : (ml3 ? 'ml3srm' : (ml4 ? 'ml4srm' : (ts ? 'threeshort' : 'plain')));
                 return createSixRunnersCard(race, patternType);
             }).join('');
         }
@@ -1256,6 +1413,56 @@
             set('tsStatTop4Raw', `${tsTop4} / ${tsRaces.length}`);
             set('tsStatTop4OnlyPct', pct(tsTop4Only, tsRaces.length));
             set('tsStatTop4OnlyRaw', `${tsTop4Only} / ${tsRaces.length}`);
+
+            // === ML SRM filtering ===
+            const fpSrm = d => { const v = parseInt(d.finishing_position, 10); return isNaN(v) ? 99 : v; };
+
+            // ML Top 3 SRM: 4th cheapest / 3rd cheapest SP ratio >= 3
+            const ml3Races = cachedSixRunnersHistory.filter(race => {
+                const a = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
+                if (a.length < 5) return false;
+                const sorted = [...a].sort((x, y) => x.starting_price - y.starting_price);
+                if (sorted.length < 4) return false;
+                const r34 = sorted[2].starting_price > 0 ? sorted[3].starting_price / sorted[2].starting_price : 0;
+                return r34 >= 3;
+            });
+            let ml3Top3 = 0, ml3Top4 = 0;
+            ml3Races.forEach(race => {
+                const a = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
+                const sorted = [...a].sort((x, y) => x.starting_price - y.starting_price);
+                const top3 = sorted.slice(0, 3);
+                if (top3.every(d => fpSrm(d) <= 3)) ml3Top3++;
+                if (top3.every(d => fpSrm(d) <= 4)) ml3Top4++;
+            });
+            set('ml3StatTotal', ml3Races.length);
+            set('ml3StatTop3Pct', pct(ml3Top3, ml3Races.length));
+            set('ml3StatTop3Raw', `${ml3Top3} / ${ml3Races.length}`);
+            set('ml3StatTop4Pct', pct(ml3Top4, ml3Races.length));
+            set('ml3StatTop4Raw', `${ml3Top4} / ${ml3Races.length}`);
+
+            // ML Top 4 SRM: 5th cheapest / 4th cheapest SP ratio >= 3
+            const ml4Races = cachedSixRunnersHistory.filter(race => {
+                const a = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
+                if (a.length < 5) return false;
+                const sorted = [...a].sort((x, y) => x.starting_price - y.starting_price);
+                if (sorted.length < 5) return false;
+                const r45 = sorted[3].starting_price > 0 ? sorted[4].starting_price / sorted[3].starting_price : 0;
+                return r45 >= 3;
+            });
+            let ml4Top4all = 0, ml4Top3in4 = 0;
+            ml4Races.forEach(race => {
+                const a = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
+                const sorted = [...a].sort((x, y) => x.starting_price - y.starting_price);
+                const top4 = sorted.slice(0, 4);
+                const top3 = sorted.slice(0, 3);
+                if (top4.every(d => fpSrm(d) <= 4)) ml4Top4all++;
+                if (top3.every(d => fpSrm(d) <= 4)) ml4Top3in4++;
+            });
+            set('ml4StatTotal', ml4Races.length);
+            set('ml4StatTop4Pct', pct(ml4Top4all, ml4Races.length));
+            set('ml4StatTop4Raw', `${ml4Top4all} / ${ml4Races.length}`);
+            set('ml4Stat3Top4Pct', pct(ml4Top3in4, ml4Races.length));
+            set('ml4Stat3Top4Raw', `${ml4Top3in4} / ${ml4Races.length}`);
 
             // Build expandable race lists
             const posIcon = (p) => {
@@ -1382,6 +1589,85 @@
                 }).join('') || '<div class="px-4 py-4 text-zinc-500 text-center">No races found</div>';
             }
 
+            // ML Top 3 SRM race list
+            const ml3ListEl = document.getElementById('ml3RaceList');
+            if (ml3ListEl) {
+                ml3ListEl.innerHTML = ml3Races.map(race => {
+                    const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
+                    const sortSP = [...active].sort((a, b) => a.starting_price - b.starting_price);
+                    const inFinish = [...active].sort((a, b) => fp(a) - fp(b));
+                    const top3Ids = new Set(sortSP.slice(0, 3).map(r => r.id));
+
+                    const top3inTop3 = sortSP.slice(0, 3).every(d => fp(d) <= 3);
+                    const top3inTop4 = sortSP.slice(0, 3).every(d => fp(d) <= 4);
+
+                    const b3 = top3inTop3
+                        ? '<span class="bg-emerald-600/80 text-emerald-100 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ TOP 3</span>'
+                        : '<span class="bg-zinc-700/50 text-zinc-500 px-1.5 py-0.5 rounded text-[9px]">✗ top 3</span>';
+                    const b4 = top3inTop4
+                        ? '<span class="bg-amber-600/80 text-amber-100 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ IN TOP 4</span>'
+                        : '<span class="bg-zinc-700/50 text-zinc-500 px-1.5 py-0.5 rounded text-[9px]">✗ top 4</span>';
+
+                    const dogsHtml = inFinish.map(d => {
+                        const sp = `$${(d.starting_price || 0).toFixed(2)}`;
+                        return top3Ids.has(d.id)
+                            ? `<span class="text-emerald-300 font-bold">${d.dog_name} ${sp} (${posIcon(fp(d))})</span>`
+                            : `<span class="text-zinc-500">${d.dog_name} ${sp} (${posIcon(fp(d))})</span>`;
+                    }).join('<span class="text-zinc-700 mx-1">·</span>');
+
+                    return `<div class="px-4 py-2.5 hover:bg-rose-900/20">
+                        <div class="flex items-center justify-between gap-2 mb-1">
+                            <span class="font-semibold text-white/80 text-[11px]">${race.meeting_name} R${race.race_number}</span>
+                            <div class="flex items-center gap-1 flex-wrap justify-end">
+                                ${b3}${b4}
+                                <span class="text-zinc-500 ml-1">${fmtDate(race.race_time)}</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-x-1 gap-y-0.5 text-[10px]">${dogsHtml}</div>
+                    </div>`;
+                }).join('') || '<div class="px-4 py-4 text-zinc-500 text-center">No races found</div>';
+            }
+
+            // ML Top 4 SRM race list
+            const ml4ListEl = document.getElementById('ml4RaceList');
+            if (ml4ListEl) {
+                ml4ListEl.innerHTML = ml4Races.map(race => {
+                    const active = (race.runners || []).filter(r => !r.is_scratched && (r.starting_price || 0) > 0);
+                    const sortSP = [...active].sort((a, b) => a.starting_price - b.starting_price);
+                    const inFinish = [...active].sort((a, b) => fp(a) - fp(b));
+                    const top3Ids = new Set(sortSP.slice(0, 3).map(r => r.id));
+                    const id4th = sortSP[3] ? sortSP[3].id : null;
+
+                    const all4inTop4 = sortSP.slice(0, 4).every(d => fp(d) <= 4);
+                    const top3inTop4 = sortSP.slice(0, 3).every(d => fp(d) <= 4);
+
+                    const b4all = all4inTop4
+                        ? '<span class="bg-emerald-600/80 text-emerald-100 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ ALL 4</span>'
+                        : '<span class="bg-zinc-700/50 text-zinc-500 px-1.5 py-0.5 rounded text-[9px]">✗ all 4</span>';
+                    const b4top3 = top3inTop4
+                        ? '<span class="bg-amber-600/80 text-amber-100 px-1.5 py-0.5 rounded text-[9px] font-bold">✓ 3 SHORT IN 4</span>'
+                        : '<span class="bg-zinc-700/50 text-zinc-500 px-1.5 py-0.5 rounded text-[9px]">✗ 3 short</span>';
+
+                    const dogsHtml = inFinish.map(d => {
+                        const sp = `$${(d.starting_price || 0).toFixed(2)}`;
+                        if (top3Ids.has(d.id)) return `<span class="text-emerald-300 font-bold">${d.dog_name} ${sp} (${posIcon(fp(d))})</span>`;
+                        if (d.id === id4th) return `<span class="text-sky-300">${d.dog_name} ${sp} (${posIcon(fp(d))})</span>`;
+                        return `<span class="text-zinc-500">${d.dog_name} ${sp} (${posIcon(fp(d))})</span>`;
+                    }).join('<span class="text-zinc-700 mx-1">·</span>');
+
+                    return `<div class="px-4 py-2.5 hover:bg-orange-900/20">
+                        <div class="flex items-center justify-between gap-2 mb-1">
+                            <span class="font-semibold text-white/80 text-[11px]">${race.meeting_name} R${race.race_number}</span>
+                            <div class="flex items-center gap-1 flex-wrap justify-end">
+                                ${b4all}${b4top3}
+                                <span class="text-zinc-500 ml-1">${fmtDate(race.race_time)}</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-x-1 gap-y-0.5 text-[10px]">${dogsHtml}</div>
+                    </div>`;
+                }).join('') || '<div class="px-4 py-4 text-zinc-500 text-center">No races found</div>';
+            }
+
             if (loading) loading.classList.add('hidden');
             if (content) content.classList.remove('hidden');
         }
@@ -1391,7 +1677,7 @@
             if (!list) return;
             const isHidden = list.classList.toggle('hidden');
             // Update chevron text in the header
-            const chevronId = listId === 'ltRaceList' ? 'ltChevron' : 'tsChevron';
+            const chevronId = listId.replace('RaceList', 'Chevron');
             const chevron = document.getElementById(chevronId);
             if (chevron) chevron.textContent = isHidden ? '▼ expand' : '▲ collapse';
         }
