@@ -898,6 +898,7 @@
                     if (runner.finishing_position === 1) posIndicator = `<div class="w-5 text-center font-bold text-yellow-400 text-[10px]">1st</div>`;
                     else if (runner.finishing_position === 2) posIndicator = `<div class="w-5 text-center font-bold text-zinc-300 text-[10px]">2nd</div>`;
                     else if (runner.finishing_position === 3) posIndicator = `<div class="w-5 text-center font-bold text-amber-600 text-[10px]">3rd</div>`;
+                    else if (runner.finishing_position === 4) posIndicator = `<div class="w-5 text-center font-bold text-zinc-500 text-[10px]">4th</div>`;
                     else posIndicator = `<div class="w-5"></div>`;
                 }
 
@@ -2472,6 +2473,8 @@
                         posIndicator = `<div class="w-4 text-center font-bold text-zinc-400 mr-1 text-[10px]">2nd</div>`;
                     } else if (runner.finishing_position === 3) {
                         posIndicator = `<div class="w-4 text-center font-bold text-amber-700 mr-1 text-[10px]">3rd</div>`;
+                    } else if (runner.finishing_position === 4) {
+                        posIndicator = `<div class="w-4 text-center font-bold text-zinc-500 mr-1 text-[10px]">4th</div>`;
                     } else {
                         // Spacer for non-placed runners to align boxes
                         posIndicator = `<div class="w-4 mr-1"></div>`;
