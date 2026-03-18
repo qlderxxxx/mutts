@@ -24,12 +24,16 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def construct_meeting_url(meeting_name: str, race_time: str) -> str:
-    """Reconstruct the form guide URL from meeting name and race time."""
+    """Reconstruct the form guide URL from meeting name and race time.
+    
+    New URL format (from ~Mar 2026): /form-guides/{track}-{YYYYMMDD}/fields/
+    Old URL format:                  /form-guides/{track}/fields/{DDMMYY}/
+    """
     track_slug = meeting_name.lower().replace(' ', '-')
     race_date_str = race_time.split('T')[0]
     race_date = datetime.strptime(race_date_str, '%Y-%m-%d')
-    date_id = race_date.strftime('%d%m%y')
-    return f"https://www.thegreyhoundrecorder.com.au/form-guides/{track_slug}/fields/{date_id}/"
+    date_compact = race_date.strftime('%Y%m%d')  # e.g. 20260318
+    return f"https://www.thegreyhoundrecorder.com.au/form-guides/{track_slug}-{date_compact}/fields/"
 
 
 def backfill_fields(days_back: int = 7):
