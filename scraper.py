@@ -314,8 +314,15 @@ def scrape_meeting_results(meeting_url: str, meeting_name: str) -> List[Dict]:
     results = []
     
     # Convert fields URL to results URL
-    # e.g., /form-guides/angle-park/fields/250176/ -> /results/angle-park/250176/
+    # Old format: /form-guides/angle-park/fields/250176/ -> /results/angle-park/250176/
+    # New format: /form-guides/sale-20260318/fields/    -> /results/sale/20260318/
     results_url = meeting_url.replace('/form-guides/', '/results/').replace('/fields/', '/')
+    # Handle new URL format: if slug contains date (e.g. "sale-20260318"), rewrite to /results/sale/20260318/
+    new_fmt_match = re.search(r'/results/([a-z][a-z0-9-]*?)-((\d{4})(\d{2})(\d{2}))/?$', results_url)
+    if new_fmt_match:
+        track_part = new_fmt_match.group(1)
+        date_part = new_fmt_match.group(2)
+        results_url = f"https://www.thegreyhoundrecorder.com.au/results/{track_part}/{date_part}/"
     
     from playwright.sync_api import sync_playwright
     
@@ -511,7 +518,7 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
     if title_elem:
         title_text = title_elem.get_text(strip=True)
         print(f"DEBUG: Title for {meeting_name}: '{title_text}'")
-        # Extract date in DD/MM/YY format (e.g., "21/01/26")
+        # Try DD/MM/YY format (e.g., "21/01/26")
         date_match = re.search(r'(\d{1,2})/(\d{1,2})/(\d{2})', title_text)
         if date_match:
             day = int(date_match.group(1))
@@ -520,9 +527,28 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
             year = 2000 + year_short  # Convert 26 to 2026
             race_date = f"{year}-{month:02d}-{day:02d}"
             print(f"DEBUG: Parsed date for {meeting_name}: {race_date}")
+        else:
+            # Try DD/MM/YYYY format (e.g., "18/03/2026")
+            date_match2 = re.search(r'(\d{1,2})/(\d{1,2})/(\d{4})', title_text)
+            if date_match2:
+                day = int(date_match2.group(1))
+                month = int(date_match2.group(2))
+                year = int(date_match2.group(3))
+                race_date = f"{year}-{month:02d}-{day:02d}"
+                print(f"DEBUG: Parsed date for {meeting_name} (YYYY fmt): {race_date}")
     
+    # Fallback: extract date from the meeting URL slug (e.g. "sale-20260318" -> 2026-03-18)
     if not race_date:
-        print(f"Could not parse date from page title for {meeting_name}")
+        url_date_match = re.search(r'-(\d{4})(\d{2})(\d{2})(?:/|$)', meeting_url)
+        if url_date_match:
+            year = int(url_date_match.group(1))
+            month = int(url_date_match.group(2))
+            day = int(url_date_match.group(3))
+            race_date = f"{year}-{month:02d}-{day:02d}"
+            print(f"DEBUG: Parsed date for {meeting_name} from URL: {race_date}")
+
+    if not race_date:
+        print(f"Could not parse date from page title or URL for {meeting_name}")
         return races
     
     # Find all race events
@@ -685,9 +711,17 @@ def scrape_form_guides() -> List[Dict]:
                         meeting_url = 'https://www.thegreyhoundrecorder.com.au' + meeting_url
                     
                     # Extract meeting name from URL or nearby element
-                    # URL format: /form-guides/[track-name]/fields/[date-id]/
-                    url_parts = meeting_url.split('/')
-                    track_slug = url_parts[-4] if len(url_parts) >= 4 else 'unknown'
+                    # Old URL format: /form-guides/[track-name]/fields/[date-id]/
+                    # New URL format: /form-guides/[track-name-YYYYMMDD]/fields/
+                    url_parts = meeting_url.rstrip('/').split('/')
+                    # Find the segment between /form-guides/ and /fields/
+                    try:
+                        fg_idx = url_parts.index('form-guides')
+                        track_slug = url_parts[fg_idx + 1] if len(url_parts) > fg_idx + 1 else 'unknown'
+                    except ValueError:
+                        track_slug = url_parts[-4] if len(url_parts) >= 4 else 'unknown'
+                    # Strip date suffix if present (e.g. "sale-20260318" -> "sale")
+                    track_slug = re.sub(r'-\d{8}$', '', track_slug)
                     meeting_name = track_slug.replace('-', ' ').title()
                     
                     print(f"\nFetching {meeting_name}...")
