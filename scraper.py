@@ -137,6 +137,30 @@ def fetch_page(url: str) -> Optional[BeautifulSoup]:
                     # Fallback to just wait for body if specific element missing
                     page.wait_for_selector('body', timeout=5000)
                 
+                # 4. Scroll to load all lazy-loaded races
+                # The site loads race events progressively as the user scrolls down.
+                # We scroll incrementally and wait for new content to appear each time.
+                if 'fields' in url:
+                    print("Scrolling to trigger lazy-loaded races...")
+                    prev_race_count = 0
+                    for scroll_attempt in range(20):  # Up to 20 scroll steps
+                        page.evaluate("window.scrollBy(0, 800)")
+                        page.wait_for_timeout(800)
+                        current_count = page.evaluate("document.querySelectorAll('.form-guide-field-event').length")
+                        if current_count > prev_race_count:
+                            print(f"  Scroll {scroll_attempt+1}: loaded {current_count} races so far...")
+                            prev_race_count = current_count
+                        # Check if we've reached the bottom
+                        at_bottom = page.evaluate(
+                            "(window.innerHeight + window.scrollY) >= document.body.scrollHeight - 100"
+                        )
+                        if at_bottom and current_count == prev_race_count:
+                            print(f"  Reached bottom with {current_count} races total.")
+                            break
+                    # Scroll back to top so page state is consistent
+                    page.evaluate("window.scrollTo(0, 0)")
+                    page.wait_for_timeout(500)
+                
                 print("Content loaded successfully!")
                 
             except Exception as e:
@@ -265,15 +289,21 @@ def count_active_runners(runner_elements) -> tuple[int, List[Dict]]:
                     pass
             
             # Extract Sportsbet fixed odds
+            # The site uses numeric bookmaker IDs (e.g. best-odds--75) rather than
+            # named classes (e.g. best-odds--sportsbet). We identify Sportsbet by
+            # finding any best-odds link whose img alt text is "Sportsbet".
             sportsbet_odds = None
-            sb_el = runner_elem.select_one('[class*="best-odds--sportsbet"]')
-            if sb_el:
-                sb_text = sb_el.get_text(strip=True).replace('$', '').strip()
-                try:
-                    sportsbet_odds = float(sb_text)
-                    print(f"    -> SB Odds for box {box_number}: ${sportsbet_odds}")
-                except ValueError:
-                    pass
+            sb_candidates = runner_elem.select('a[class*="best-odds--"]')
+            for sb_el in sb_candidates:
+                img = sb_el.find('img')
+                if img and img.get('alt', '').lower() == 'sportsbet':
+                    sb_text = sb_el.get_text(strip=True).replace('$', '').strip()
+                    try:
+                        sportsbet_odds = float(sb_text)
+                        print(f"    -> SB Odds for box {box_number}: ${sportsbet_odds}")
+                    except ValueError:
+                        pass
+                    break
 
             runner_data = {
                 'dog_name': dog_name,
