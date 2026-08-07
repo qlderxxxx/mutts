@@ -78,7 +78,6 @@ def fetch_page(url: str) -> Optional[BeautifulSoup]:
             # Create context with realistic attributes
             context = browser.new_context(
                 viewport={'width': 1920, 'height': 1080},
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                 locale='en-AU',
                 timezone_id='Australia/Sydney',
                 has_touch=False,
@@ -125,7 +124,15 @@ def fetch_page(url: str) -> Optional[BeautifulSoup]:
                 
                 # 2. Go to target
                 page.goto(url, timeout=60000, wait_until='domcontentloaded')
-                
+
+                # Cloudflare may briefly show a browser-check page before allowing access.
+                # Give it up to 60 seconds to resolve before checking for race content.
+                for attempt in range(12):
+                    if 'checking your browser' not in page.title().lower():
+                        break
+                    print(f"Cloudflare browser check in progress ({attempt + 1}/12)...")
+                    page.wait_for_timeout(5000)
+
                 # 3. Wait for content to load - CRITICAL: Wait for the actual table with runner data
                 # The page uses JavaScript to populate the tables, so we need to wait for them
                 try:
@@ -943,6 +950,12 @@ def main():
     
     # Scrape all races
     all_races = scrape_form_guides()
+
+    # Zero races means the source page was blocked or changed. Do not report success.
+    if not all_races:
+        raise RuntimeError(
+            "No races were scraped. The source may still be showing a Cloudflare challenge."
+        )
     
     print(f"\n--- Upserting {len(all_races)} races to Supabase ---")
     
