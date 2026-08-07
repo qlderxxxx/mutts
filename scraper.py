@@ -61,8 +61,19 @@ def fetch_page(url: str) -> Optional[BeautifulSoup]:
     """Fetch and parse a web page using Playwright to bypass WAF"""
     try:
         with sync_playwright() as p:
-            # Use headed Firefox as a final free browser-engine test on GitHub Actions.
-            browser = p.firefox.launch(headless=False)
+            # Use the runner's genuine Google Chrome in headed mode.
+            browser = p.chromium.launch(
+                channel='chrome',
+                headless=False,
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--window-size=1920,1080',
+                    '--start-maximized'
+                ]
+            )
             
             # Create context with realistic attributes
             context = browser.new_context(
