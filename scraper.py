@@ -64,7 +64,8 @@ def fetch_page(url: str) -> Optional[BeautifulSoup]:
             # Launch browser in HEADED mode (requires Xvfb on server)
             # This is significantly harder to detect than headless
             browser = p.chromium.launch(
-                headless=False,  # <--- KEY CHANGE: Run "visible"
+                channel='chrome',
+                headless=False,
                 args=[
                     '--disable-blink-features=AutomationControlled',
                     '--no-sandbox',
@@ -88,31 +89,7 @@ def fetch_page(url: str) -> Optional[BeautifulSoup]:
             
             page = context.new_page()
             
-            # ADVANCED STEALTH INJECTIONS to mask automation
-            stealth_scripts = [
-                # Mask webdriver
-                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})",
-                # Mock plugins (Headless usually has 0)
-                "Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]})",
-                # Mock languages
-                "Object.defineProperty(navigator, 'languages', {get: () => ['en-AU', 'en-US', 'en']})",
-                # Mock connection
-                "Object.defineProperty(navigator, 'connection', {get: () => ({rtt: 50, download: 10})})",
-                # Pass chrome check
-                "window.chrome = { runtime: {} }",
-                # Mock WebGL vendor (often reveals 'Google Inc.')
-                """
-                const getParameter = WebGLRenderingContext.prototype.getParameter;
-                WebGLRenderingContext.prototype.getParameter = function(parameter) {
-                    if (parameter === 37445) return 'Intel Open Source Technology Center';
-                    if (parameter === 37446) return 'Mesa DRI Intel(R) HD Graphics 620 (Kaby Lake GT2)';
-                    return getParameter(parameter);
-                };
-                """
-            ]
-            
-            for script in stealth_scripts:
-                page.add_init_script(script)
+            # Use Chrome's genuine browser fingerprint rather than overriding native properties.
             
             print(f"Navigating to {url} (Headed Mode)...")
             
@@ -174,6 +151,11 @@ def fetch_page(url: str) -> Optional[BeautifulSoup]:
                 print(f"Navigation/Selector error: {e}")
                 print("Capturing content state anyway...")
             
+            if 'checking your browser' in page.title().lower():
+                raise RuntimeError(
+                    "Cloudflare browser check did not resolve after 60 seconds"
+                )
+
             content = page.content()
             
             # Debug: Screenshot if it fails (stored in memory/logs if we could)
