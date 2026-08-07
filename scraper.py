@@ -61,20 +61,8 @@ def fetch_page(url: str) -> Optional[BeautifulSoup]:
     """Fetch and parse a web page using Playwright to bypass WAF"""
     try:
         with sync_playwright() as p:
-            # Launch browser in HEADED mode (requires Xvfb on server)
-            # This is significantly harder to detect than headless
-            browser = p.chromium.launch(
-                channel='chrome',
-                headless=False,
-                args=[
-                    '--disable-blink-features=AutomationControlled',
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--window-size=1920,1080',
-                    '--start-maximized' # Ensure full screen for realism
-                ]
-            )
+            # Use headed Firefox as a final free browser-engine test on GitHub Actions.
+            browser = p.firefox.launch(headless=False)
             
             # Create context with realistic attributes
             context = browser.new_context(
@@ -151,12 +139,16 @@ def fetch_page(url: str) -> Optional[BeautifulSoup]:
                 print(f"Navigation/Selector error: {e}")
                 print("Capturing content state anyway...")
             
-            if 'checking your browser' in page.title().lower():
+            content = page.content()
+            content_lower = content.lower()
+            if (
+                'checking your browser' in content_lower
+                or 'challenges.cloudflare.com' in content_lower
+                or 'cf-turnstile' in content_lower
+            ):
                 raise RuntimeError(
                     "Cloudflare browser check did not resolve after 60 seconds"
                 )
-
-            content = page.content()
             
             # Debug: Screenshot if it fails (stored in memory/logs if we could)
             # page.screenshot(path="debug_screenshot.png")
