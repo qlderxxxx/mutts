@@ -131,16 +131,10 @@ jobs:
 
           if runners:
               runner = runners[0]
-              print(
-                  "Sample runner fields:",
-                  sorted(runner.keys()),
-              )
-              print(
-                  "Sample runner:",
-                  runner.get("number") or runner.get("boxNumber"),
-                  runner.get("name"),
-                  "| price:", runner.get("price"),
-              )
+              print("Race fields:", sorted(race.keys()))
+              print("Sample runner fields:", sorted(runner.keys()))
+              print("Sample runner JSON:")
+              print(json.dumps(runner, indent=2)[:5000])
 
           if not runners:
               sys.exit("FAIL: Race card returned without runners")
