@@ -12,18 +12,18 @@ permissions:
 jobs:
   test-feed:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
-      - name: Test PointsBet greyhound racing API
+      - name: Find Australian four-dog races
         shell: bash
         run: |
           python - <<'PY'
           import json
-          import sys
           import urllib.error
           import urllib.parse
           import urllib.request
+          from collections import Counter
           from datetime import datetime, timedelta, timezone
 
           BASE_URL = "https://api.au.pointsbet.com"
@@ -40,104 +40,108 @@ jobs:
               url = BASE_URL + path
               if params:
                   url += "?" + urllib.parse.urlencode(params)
-              print(f"GET {url}")
               request = urllib.request.Request(url, headers=HEADERS)
               try:
                   with urllib.request.urlopen(request, timeout=30) as response:
                       body = response.read()
-                      print(
-                          f"HTTP {response.status}; "
-                          f"content-type={response.headers.get('content-type')}; "
-                          f"bytes={len(body)}"
-                      )
+                      print(f"HTTP {response.status} {path}; bytes={len(body)}")
               except urllib.error.HTTPError as error:
                   body = error.read()
-                  print(f"HTTP {error.code}: {body[:1000].decode('utf-8', 'replace')}")
+                  print(f"HTTP {error.code} {path}: {body[:1000].decode('utf-8', 'replace')}")
                   raise
               return json.loads(body)
 
           now = datetime.now(timezone.utc)
           start = now.replace(hour=0, minute=0, second=0, microsecond=0)
           end = start + timedelta(days=2)
-
           iso = lambda value: value.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
           payload = get_json(
               "/api/racing/v4/meetings",
               {"startDate": iso(start), "endDate": iso(end)},
           )
-
           groups = payload if isinstance(payload, list) else payload.get("meetings", [])
+
           meetings = []
           for group in groups:
-              if not isinstance(group, dict):
-                  continue
-              candidates = group.get("meetings")
-              if isinstance(candidates, list):
-                  meetings.extend(candidates)
-              elif group.get("meetingId"):
-                  meetings.append(group)
+              candidates = group.get("meetings", []) if isinstance(group, dict) else []
+              meetings.extend(
+                  meeting for meeting in candidates
+                  if meeting.get("racingType") == 4
+                  and meeting.get("countryCode") == "AUS"
+              )
 
-          # PointsBet racingType values: 1=thoroughbred, 2=harness, 4=greyhound.
-          greyhound_meetings = [
-              meeting for meeting in meetings
-              if meeting.get("racingType") == 4
-              or "grey" in str(
-                  meeting.get("racingType")
-                  or meeting.get("raceType")
-                  or meeting.get("sport")
-                  or ""
-              ).lower()
-          ]
+          race_summaries = {}
+          for meeting in meetings:
+              for race in meeting.get("races") or []:
+                  race_id = race.get("raceId")
+                  if race_id:
+                      race_summaries[str(race_id)] = {
+                          "venue": meeting.get("venue"),
+                          "race_number": race.get("raceNumber"),
+                          "start_utc": race.get("advertisedStartDateTimeUtc"),
+                      }
 
-          print(f"Meeting groups: {len(groups)}")
-          print(f"All meetings: {len(meetings)}")
-          print(f"Greyhound meetings: {len(greyhound_meetings)}")
+          race_ids = list(race_summaries)
+          print(f"Australian greyhound meetings: {len(meetings)}")
+          print(f"Australian greyhound races to inspect: {len(race_ids)}")
 
-          if not greyhound_meetings:
-              types = sorted({
-                  str(m.get("racingType") or m.get("raceType") or m.get("sport"))
-                  for m in meetings
-              })
-              print(f"Racing types returned: {types}")
-              print("Response preview:")
-              print(json.dumps(payload, indent=2)[:5000])
-              sys.exit("FAIL: API responded but no greyhound meetings were found")
+          race_cards = []
+          for offset in range(0, len(race_ids), 20):
+              batch_ids = race_ids[offset:offset + 20]
+              batch = get_json(
+                  "/api/racing/v3/races",
+                  {"raceIds": ",".join(batch_ids)},
+              )
+              if isinstance(batch, list):
+                  race_cards.extend(batch)
+              elif isinstance(batch, dict):
+                  if isinstance(batch.get("races"), list):
+                      race_cards.extend(batch["races"])
+                  elif batch.get("raceId"):
+                      race_cards.append(batch)
 
-          meeting = greyhound_meetings[0]
-          races = meeting.get("races") or []
-          print(
-              "Sample meeting:",
-              meeting.get("venue") or meeting.get("name"),
-              "| meetingId:", meeting.get("meetingId"),
-              "| races:", len(races),
-          )
+          counts = Counter()
+          four_dog_races = []
+          for race in race_cards:
+              runners = race.get("runners") or []
+              active = [runner for runner in runners if not runner.get("isScratched", False)]
+              active_count = len(active)
+              counts[active_count] += 1
 
-          race_id = next(
-              (race.get("raceId") for race in races if isinstance(race, dict) and race.get("raceId")),
-              None,
-          )
-          if not race_id:
-              sys.exit("FAIL: Greyhound meeting returned without a raceId")
+              if active_count == 4:
+                  summary = race_summaries.get(str(race.get("raceId")), {})
+                  four_dog_races.append({
+                      "venue": race.get("venue") or summary.get("venue"),
+                      "race_number": race.get("number") or summary.get("race_number"),
+                      "start_utc": race.get("advertisedStartTimeUtc") or summary.get("start_utc"),
+                      "race_id": race.get("raceId"),
+                      "dogs": [
+                          {
+                              "box": runner.get("number") or runner.get("barrier"),
+                              "name": runner.get("runnerName"),
+                              "price": (runner.get("fluctuations") or {}).get("current"),
+                          }
+                          for runner in active
+                      ],
+                  })
 
-          race = get_json(f"/api/racing/v3/races/{race_id}")
-          runners = race.get("runners") or []
-          print(
-              "Sample race:",
-              race.get("venue") or meeting.get("venue"),
-              f"R{race.get('number') or race.get('raceNumber')}",
-              "| raceId:", race_id,
-              "| runners:", len(runners),
-          )
+          print(f"Race cards returned: {len(race_cards)}")
+          print("Active-runner count distribution:", dict(sorted(counts.items())))
+          print(f"FOUR-DOG RACES FOUND: {len(four_dog_races)}")
 
-          if runners:
-              runner = runners[0]
-              print("Race fields:", sorted(race.keys()))
-              print("Sample runner fields:", sorted(runner.keys()))
-              print("Sample runner JSON:")
-              print(json.dumps(runner, indent=2)[:5000])
+          for race in four_dog_races:
+              print(
+                  f"{race['venue']} R{race['race_number']} | "
+                  f"{race['start_utc']} | raceId={race['race_id']}"
+              )
+              for dog in race["dogs"]:
+                  print(f"  Box {dog['box']}: {dog['name']} | PointsBet {dog['price']}")
 
-          if not runners:
-              sys.exit("FAIL: Race card returned without runners")
+          if len(race_cards) != len(race_ids):
+              raise SystemExit(
+                  f"FAIL: requested {len(race_ids)} race cards but received {len(race_cards)}"
+              )
 
-          print("PASS: Free PointsBet greyhound feed works from GitHub Actions")
+          print("PASS: Feed can identify races by active runner count")
           PY
