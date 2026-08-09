@@ -77,9 +77,11 @@ jobs:
               elif group.get("meetingId"):
                   meetings.append(group)
 
+          # PointsBet racingType values: 1=thoroughbred, 2=harness, 4=greyhound.
           greyhound_meetings = [
               meeting for meeting in meetings
-              if "grey" in str(
+              if meeting.get("racingType") == 4
+              or "grey" in str(
                   meeting.get("racingType")
                   or meeting.get("raceType")
                   or meeting.get("sport")
