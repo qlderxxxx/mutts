@@ -1,0 +1,147 @@
+name: Test free greyhound feed
+
+on:
+  push:
+    paths:
+      - '.github/workflows/test-pointsbet-feed.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-feed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Test PointsBet greyhound racing API
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from datetime import datetime, timedelta, timezone
+
+          BASE_URL = "https://api.au.pointsbet.com"
+          HEADERS = {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/127.0.0.0 Safari/537.36",
+              "Accept": "application/json, text/plain, */*",
+              "Origin": "https://pointsbet.com.au",
+              "Referer": "https://pointsbet.com.au/",
+          }
+
+          def get_json(path, params=None):
+              url = BASE_URL + path
+              if params:
+                  url += "?" + urllib.parse.urlencode(params)
+              print(f"GET {url}")
+              request = urllib.request.Request(url, headers=HEADERS)
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      body = response.read()
+                      print(
+                          f"HTTP {response.status}; "
+                          f"content-type={response.headers.get('content-type')}; "
+                          f"bytes={len(body)}"
+                      )
+              except urllib.error.HTTPError as error:
+                  body = error.read()
+                  print(f"HTTP {error.code}: {body[:1000].decode('utf-8', 'replace')}")
+                  raise
+              return json.loads(body)
+
+          now = datetime.now(timezone.utc)
+          start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+          end = start + timedelta(days=2)
+
+          iso = lambda value: value.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+          payload = get_json(
+              "/api/racing/v4/meetings",
+              {"startDate": iso(start), "endDate": iso(end)},
+          )
+
+          groups = payload if isinstance(payload, list) else payload.get("meetings", [])
+          meetings = []
+          for group in groups:
+              if not isinstance(group, dict):
+                  continue
+              candidates = group.get("meetings")
+              if isinstance(candidates, list):
+                  meetings.extend(candidates)
+              elif group.get("meetingId"):
+                  meetings.append(group)
+
+          greyhound_meetings = [
+              meeting for meeting in meetings
+              if "grey" in str(
+                  meeting.get("racingType")
+                  or meeting.get("raceType")
+                  or meeting.get("sport")
+                  or ""
+              ).lower()
+          ]
+
+          print(f"Meeting groups: {len(groups)}")
+          print(f"All meetings: {len(meetings)}")
+          print(f"Greyhound meetings: {len(greyhound_meetings)}")
+
+          if not greyhound_meetings:
+              types = sorted({
+                  str(m.get("racingType") or m.get("raceType") or m.get("sport"))
+                  for m in meetings
+              })
+              print(f"Racing types returned: {types}")
+              print("Response preview:")
+              print(json.dumps(payload, indent=2)[:5000])
+              sys.exit("FAIL: API responded but no greyhound meetings were found")
+
+          meeting = greyhound_meetings[0]
+          races = meeting.get("races") or []
+          print(
+              "Sample meeting:",
+              meeting.get("venue") or meeting.get("name"),
+              "| meetingId:", meeting.get("meetingId"),
+              "| races:", len(races),
+          )
+
+          race_id = next(
+              (race.get("raceId") for race in races if isinstance(race, dict) and race.get("raceId")),
+              None,
+          )
+          if not race_id:
+              sys.exit("FAIL: Greyhound meeting returned without a raceId")
+
+          race = get_json(f"/api/racing/v3/races/{race_id}")
+          runners = race.get("runners") or []
+          print(
+              "Sample race:",
+              race.get("venue") or meeting.get("venue"),
+              f"R{race.get('number') or race.get('raceNumber')}",
+              "| raceId:", race_id,
+              "| runners:", len(runners),
+          )
+
+          if runners:
+              runner = runners[0]
+              print(
+                  "Sample runner fields:",
+                  sorted(runner.keys()),
+              )
+              print(
+                  "Sample runner:",
+                  runner.get("number") or runner.get("boxNumber"),
+                  runner.get("name"),
+                  "| price:", runner.get("price"),
+              )
+
+          if not runners:
+              sys.exit("FAIL: Race card returned without runners")
+
+          print("PASS: Free PointsBet greyhound feed works from GitHub Actions")
+          PY
