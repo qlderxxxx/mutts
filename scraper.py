@@ -200,6 +200,8 @@ def fetch_pointsbet_races() -> List[Dict]:
             dog_name = source_runner.get("runnerName") or source_runner.get("name")
             if not dog_name:
                 continue
+            if "vacant" in str(dog_name).lower():
+                continue
             runners.append({
                 "dog_name": dog_name,
                 "box_number": box,
