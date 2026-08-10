@@ -1,0 +1,136 @@
+name: Test Sportsbet greyhound prices
+
+on:
+  push:
+    paths:
+      - '.github/workflows/test-sportsbet-feed.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-sportsbet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Test anonymous Sportsbet racing API
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+
+          BASE_URL = "https://www.sportsbet.com.au/apigw"
+          HEADERS = {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/127.0.0.0 Safari/537.36",
+              "Accept": "application/json, text/plain, */*",
+              "Accept-Language": "en-AU,en;q=0.9",
+              "Origin": "https://www.sportsbet.com.au",
+              "Referer": "https://www.sportsbet.com.au/",
+          }
+
+          def get_json(path, params=None):
+              url = BASE_URL + path
+              if params:
+                  url += "?" + urllib.parse.urlencode(params)
+              print(f"GET {url}")
+              request = urllib.request.Request(url, headers=HEADERS)
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      body = response.read()
+                      print(
+                          f"HTTP {response.status}; "
+                          f"content-type={response.headers.get('content-type')}; "
+                          f"bytes={len(body)}"
+                      )
+              except urllib.error.HTTPError as error:
+                  body = error.read()
+                  print(f"HTTP {error.code}: {body[:2000].decode('utf-8', 'replace')}")
+                  raise
+              return json.loads(body)
+
+          event_date = datetime.now(ZoneInfo("Australia/Sydney")).date().isoformat()
+          all_racing = get_json(
+              f"/sportsbook-racing/Sportsbook/Racing/AllRacing/{event_date}"
+          )
+
+          print("AllRacing top-level fields:", sorted(all_racing.keys()))
+          meetings = all_racing.get("meetings") or []
+          print(f"All meetings: {len(meetings)}")
+          race_types = sorted({
+              str(meeting.get("raceType"))
+              for meeting in meetings
+          })
+          print("Race types:", race_types)
+
+          greyhound_meetings = [
+              meeting for meeting in meetings
+              if "grey" in str(meeting.get("raceType") or "").lower()
+          ]
+          print(f"Greyhound meetings: {len(greyhound_meetings)}")
+
+          if not greyhound_meetings:
+              print("Meeting preview:")
+              print(json.dumps(meetings[:3], indent=2)[:5000])
+              raise SystemExit("FAIL: Sportsbet responded but greyhound meetings were not identified")
+
+          event = next(
+              (
+                  event
+                  for meeting in greyhound_meetings
+                  for event in (meeting.get("events") or [])
+                  if event.get("eventId")
+              ),
+              None,
+          )
+          if not event:
+              raise SystemExit("FAIL: No Sportsbet greyhound eventId was returned")
+
+          event_id = event["eventId"]
+          print(
+              "Sample Sportsbet race:",
+              event.get("meetingName"),
+              f"R{event.get('raceNumber')}",
+              f"eventId={event_id}",
+          )
+
+          racecard = get_json(
+              f"/sportsbook-racing/Sportsbook/Racing/Events/{event_id}/Racecard",
+              {"selectionNames": "true"},
+          )
+          print("Racecard top-level fields:", sorted(racecard.keys()))
+
+          markets = racecard.get("markets") or []
+          selections = [
+              selection
+              for market in markets
+              for selection in (market.get("selections") or [])
+          ]
+          priced = [
+              selection for selection in selections
+              if isinstance(selection.get("price"), dict)
+              and selection["price"].get("winPrice") is not None
+          ]
+
+          print(f"Markets: {len(markets)}")
+          print(f"Selections: {len(selections)}")
+          print(f"Selections with Sportsbet win price: {len(priced)}")
+          if priced:
+              print("Sample priced Sportsbet selection:")
+              print(json.dumps(priced[0], indent=2)[:3000])
+
+          if not priced:
+              print("Racecard preview:")
+              print(json.dumps(racecard, indent=2)[:5000])
+              raise SystemExit("FAIL: Sportsbet racecard returned without win prices")
+
+          print("PASS: Sportsbet greyhound prices are accessible from GitHub Actions")
+          PY
