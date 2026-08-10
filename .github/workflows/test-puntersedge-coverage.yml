@@ -102,7 +102,7 @@ jobs:
           pe_races_raw = get_json(
               "https://puntersedge.online/api",
               "/v1/racing/next-to-go",
-              {"categories": "greyhound", "num_races": 200},
+              {"categories": "greyhound", "num_races": 50},
               pe_headers,
           )
           usage_after = get_json(
@@ -232,7 +232,7 @@ jobs:
           print("COVERAGE SUMMARY (next 48 hours)")
           print(f"PointsBet Australian races: {len(pb_races)}")
           print(f"PuntersEdge /events races: {len(pe_events)}")
-          print(f"PuntersEdge /next-to-go races (requested 200): {len(pe_races)}")
+          print(f"PuntersEdge /next-to-go races (requested 50): {len(pe_races)}")
           print(f"Exact venue/race matches via /events: {len(exact_event_matches)}")
           print(f"Exact venue/race matches via /next-to-go: {len(exact_ntg_matches)}")
           print(f"PuntersEdge races with runner arrays: {len(races_with_runners)}")
