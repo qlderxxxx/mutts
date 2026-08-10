@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Find Australian four-dog races
+      - name: Scan every Australian greyhound race
         shell: bash
         run: |
           python - <<'PY'
@@ -32,6 +32,7 @@ jobs:
                             "AppleWebKit/537.36 (KHTML, like Gecko) "
                             "Chrome/127.0.0.0 Safari/537.36",
               "Accept": "application/json, text/plain, */*",
+              "Accept-Language": "en-AU,en;q=0.9",
               "Origin": "https://pointsbet.com.au",
               "Referer": "https://pointsbet.com.au/",
           }
@@ -84,7 +85,7 @@ jobs:
 
           race_ids = list(race_summaries)
           print(f"Australian greyhound meetings: {len(meetings)}")
-          print(f"Australian greyhound races to inspect: {len(race_ids)}")
+          print(f"EVERY Australian greyhound race to store: {len(race_ids)}")
 
           race_cards = []
           for offset in range(0, len(race_ids), 20):
@@ -102,16 +103,28 @@ jobs:
                       race_cards.append(batch)
 
           counts = Counter()
-          four_dog_races = []
+          small_fields = {4: [], 5: []}
           for race in race_cards:
               runners = race.get("runners") or []
-              active = [runner for runner in runners if not runner.get("isScratched", False)]
+
+              # Australian starters use boxes 1-8. PointsBet may also include
+              # reserves 9 and 10, so do not count those as active starters.
+              active = []
+              for runner in runners:
+                  box = runner.get("number") or runner.get("barrier")
+                  try:
+                      is_starting_box = 1 <= int(box) <= 8
+                  except (TypeError, ValueError):
+                      is_starting_box = False
+                  if is_starting_box and not runner.get("isScratched", False):
+                      active.append(runner)
+
               active_count = len(active)
               counts[active_count] += 1
 
-              if active_count == 4:
+              if active_count in small_fields:
                   summary = race_summaries.get(str(race.get("raceId")), {})
-                  four_dog_races.append({
+                  small_fields[active_count].append({
                       "venue": race.get("venue") or summary.get("venue"),
                       "race_number": race.get("number") or summary.get("race_number"),
                       "start_utc": race.get("advertisedStartTimeUtc") or summary.get("start_utc"),
@@ -126,22 +139,27 @@ jobs:
                       ],
                   })
 
-          print(f"Race cards returned: {len(race_cards)}")
-          print("Active-runner count distribution:", dict(sorted(counts.items())))
-          print(f"FOUR-DOG RACES FOUND: {len(four_dog_races)}")
+          print(f"Race cards returned for storage: {len(race_cards)}")
+          print("Active-starter count distribution:", dict(sorted(counts.items())))
 
-          for race in four_dog_races:
-              print(
-                  f"{race['venue']} R{race['race_number']} | "
-                  f"{race['start_utc']} | raceId={race['race_id']}"
-              )
-              for dog in race["dogs"]:
-                  print(f"  Box {dog['box']}: {dog['name']} | PointsBet {dog['price']}")
+          for field_size in (4, 5):
+              races = small_fields[field_size]
+              print(f"{field_size}-DOG RACES FOUND: {len(races)}")
+              for race in races:
+                  print(
+                      f"{field_size}-DOG | {race['venue']} R{race['race_number']} | "
+                      f"{race['start_utc']} | raceId={race['race_id']}"
+                  )
+                  for dog in race["dogs"]:
+                      print(
+                          f"  Box {dog['box']}: {dog['name']} | "
+                          f"PointsBet {dog['price']}"
+                      )
 
           if len(race_cards) != len(race_ids):
               raise SystemExit(
                   f"FAIL: requested {len(race_ids)} race cards but received {len(race_cards)}"
               )
 
-          print("PASS: Feed can identify races by active runner count")
+          print("PASS: Every race is available; front end can filter by active starter count")
           PY
