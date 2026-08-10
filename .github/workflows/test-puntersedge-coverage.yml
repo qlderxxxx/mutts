@@ -1,0 +1,246 @@
+name: Test PuntersEdge full coverage
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/test-puntersedge-coverage.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  compare-feeds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PUNTERS_EDGE_API_KEY: ${{ secrets.PUNTERS_EDGE_API_KEY }}
+
+    steps:
+      - name: Compare PuntersEdge with complete PointsBet race list
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import urllib.parse
+          import urllib.request
+          from datetime import datetime, timedelta, timezone
+
+          KEY = os.environ.get("PUNTERS_EDGE_API_KEY")
+          if not KEY:
+              raise SystemExit("FAIL: PUNTERS_EDGE_API_KEY is not configured")
+
+          def get_json(base, path, params=None, headers=None):
+              url = base + path
+              if params:
+                  url += "?" + urllib.parse.urlencode(params)
+              request = urllib.request.Request(url, headers=headers or {})
+              with urllib.request.urlopen(request, timeout=45) as response:
+                  body = response.read()
+                  print(f"HTTP {response.status} {path}; bytes={len(body)}")
+              return json.loads(body)
+
+          pe_headers = {
+              "X-API-Key": KEY,
+              "Accept": "application/json",
+              "User-Agent": "mutts-greyhound-coverage-test/1.0",
+          }
+          pb_headers = {
+              "Accept": "application/json, text/plain, */*",
+              "User-Agent": "Mozilla/5.0",
+              "Origin": "https://pointsbet.com.au",
+              "Referer": "https://pointsbet.com.au/",
+          }
+
+          now = datetime.now(timezone.utc)
+          horizon = now + timedelta(hours=48)
+          iso = lambda value: value.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+          usage_before = get_json(
+              "https://puntersedge.online/api", "/v1/usage", headers=pe_headers
+          )
+          pe_events_raw = get_json(
+              "https://puntersedge.online/api",
+              "/v1/racing/events",
+              {"categories": "greyhound", "hours_ahead": 48},
+              pe_headers,
+          )
+          pe_races_raw = get_json(
+              "https://puntersedge.online/api",
+              "/v1/racing/next-to-go",
+              {"categories": "greyhound", "num_races": 200},
+              pe_headers,
+          )
+          usage_after = get_json(
+              "https://puntersedge.online/api", "/v1/usage", headers=pe_headers
+          )
+
+          pb_raw = get_json(
+              "https://api.au.pointsbet.com",
+              "/api/racing/v4/meetings",
+              {"startDate": iso(now), "endDate": iso(horizon)},
+              pb_headers,
+          )
+
+          def payload_list(payload, preferred):
+              if isinstance(payload, list):
+                  return payload
+              if isinstance(payload, dict):
+                  for key in preferred + ["data", "results", "items"]:
+                      value = payload.get(key)
+                      if isinstance(value, list):
+                          return value
+                      if isinstance(value, dict):
+                          nested = payload_list(value, preferred)
+                          if nested:
+                              return nested
+              return []
+
+          pe_events = payload_list(pe_events_raw, ["events", "races"])
+          pe_races = payload_list(pe_races_raw, ["races", "events"])
+
+          pb_groups = pb_raw if isinstance(pb_raw, list) else pb_raw.get("meetings", [])
+          pb_meetings = []
+          for group in pb_groups:
+              if not isinstance(group, dict):
+                  continue
+              for meeting in group.get("meetings") or []:
+                  if (
+                      meeting.get("racingType") == 4
+                      and meeting.get("countryCode") == "AUS"
+                  ):
+                      pb_meetings.append(meeting)
+
+          pb_races = []
+          for meeting in pb_meetings:
+              for race in meeting.get("races") or []:
+                  start = race.get("advertisedStartDateTimeUtc")
+                  if start:
+                      try:
+                          parsed = datetime.fromisoformat(start.replace("Z", "+00:00"))
+                          if not (now <= parsed <= horizon):
+                              continue
+                      except ValueError:
+                          pass
+                  pb_races.append({
+                      "venue": meeting.get("venue"),
+                      "race_number": race.get("raceNumber"),
+                      "start": start,
+                  })
+
+          def field(obj, names):
+              if not isinstance(obj, dict):
+                  return None
+              normal = {
+                  re.sub(r"[^a-z0-9]", "", str(key).lower()): value
+                  for key, value in obj.items()
+              }
+              for name in names:
+                  value = normal.get(re.sub(r"[^a-z0-9]", "", name.lower()))
+                  if value is not None:
+                      return value
+              return None
+
+          def venue(obj):
+              value = field(
+                  obj,
+                  [
+                      "venue", "venue_name", "venueName", "meeting",
+                      "meeting_name", "meetingName", "track", "track_name",
+                  ],
+              )
+              if isinstance(value, dict):
+                  value = field(value, ["name", "venue", "track"])
+              return value
+
+          def race_number(obj):
+              return field(obj, ["race_number", "raceNumber", "number", "race_no"])
+
+          def runners(obj):
+              value = field(obj, ["runners", "selections", "outcomes"])
+              return value if isinstance(value, list) else []
+
+          def norm(value):
+              return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
+
+          def race_key(obj):
+              return norm(venue(obj)), str(race_number(obj) or "")
+
+          def has_numeric_sportsbet(value):
+              if isinstance(value, dict):
+                  values = list(value.values())
+                  mentions = any("sportsbet" in str(item).lower() for item in values)
+                  numeric_price = any(
+                      isinstance(item, (int, float))
+                      and any(word in str(key).lower() for word in ("price", "odds", "win"))
+                      for key, item in value.items()
+                  )
+                  if mentions and numeric_price:
+                      return True
+                  return any(has_numeric_sportsbet(item) for item in values)
+              if isinstance(value, list):
+                  return any(has_numeric_sportsbet(item) for item in value)
+              return False
+
+          pb_keys = {race_key(race) for race in pb_races if race_key(race)[0]}
+          event_keys = {race_key(race) for race in pe_events if race_key(race)[0]}
+          ntg_keys = {race_key(race) for race in pe_races if race_key(race)[0]}
+
+          exact_event_matches = pb_keys & event_keys
+          exact_ntg_matches = pb_keys & ntg_keys
+
+          races_with_runners = [race for race in pe_races if runners(race)]
+          races_with_sportsbet = [
+              race for race in pe_races if has_numeric_sportsbet(race)
+          ]
+
+          print()
+          print("COVERAGE SUMMARY (next 48 hours)")
+          print(f"PointsBet Australian races: {len(pb_races)}")
+          print(f"PuntersEdge /events races: {len(pe_events)}")
+          print(f"PuntersEdge /next-to-go races (requested 200): {len(pe_races)}")
+          print(f"Exact venue/race matches via /events: {len(exact_event_matches)}")
+          print(f"Exact venue/race matches via /next-to-go: {len(exact_ntg_matches)}")
+          print(f"PuntersEdge races with runner arrays: {len(races_with_runners)}")
+          print(f"PuntersEdge races with numeric Sportsbet prices: {len(races_with_sportsbet)}")
+          print("Usage before:", json.dumps(usage_before, separators=(",", ":")))
+          print("Usage after:", json.dumps(usage_after, separators=(",", ":")))
+
+          missing = sorted(pb_keys - ntg_keys)
+          print(f"PointsBet races absent from PuntersEdge next-to-go: {len(missing)}")
+          for key in missing[:30]:
+              print("  MISSING", key)
+
+          print("PuntersEdge next-to-go preview:")
+          print(json.dumps(pe_races[:2], indent=2)[:12000])
+
+          pb_total = len(pb_races)
+          minimum = max(1, int(pb_total * 0.90))
+          failures = []
+          if len(pe_events) < minimum:
+              failures.append(
+                  f"/events returned {len(pe_events)} races; need at least {minimum}"
+              )
+          if len(pe_races) < minimum:
+              failures.append(
+                  f"/next-to-go returned {len(pe_races)} races; need at least {minimum}"
+              )
+          if len(races_with_runners) < minimum:
+              failures.append(
+                  f"only {len(races_with_runners)} races contained runner arrays"
+              )
+          if len(races_with_sportsbet) < max(1, int(pb_total * 0.75)):
+              failures.append(
+                  f"only {len(races_with_sportsbet)} races contained numeric Sportsbet prices"
+              )
+
+          if failures:
+              print("RESULT: PuntersEdge cannot safely be the sole complete-race feed")
+              for failure in failures:
+                  print("FAIL:", failure)
+              raise SystemExit(1)
+
+          print("PASS: PuntersEdge has enough complete coverage to be the primary feed")
+          PY
