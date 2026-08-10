@@ -137,23 +137,30 @@ jobs:
           PY
 
 
-      - name: Test free Sportsbet-price aggregator
+      - name: Test authenticated PuntersEdge Sportsbet prices
         shell: bash
+        env:
+          PUNTERS_EDGE_API_KEY: ${{ secrets.PUNTERS_EDGE_API_KEY }}
         run: |
           python - <<'PY'
           import json
+          import os
           import urllib.parse
           import urllib.request
 
+          api_key = os.environ.get("PUNTERS_EDGE_API_KEY")
+          if not api_key:
+              raise SystemExit(
+                  "FAIL: Add PUNTERS_EDGE_API_KEY under Settings > Secrets and variables > Actions"
+              )
+
           params = urllib.parse.urlencode({"categories": "greyhound"})
-          url = (
-              "https://puntersedge.online/api/v1/demo/racing/next-to-go?"
-              + params
-          )
+          url = "https://puntersedge.online/api/v1/racing/next-to-go?" + params
           request = urllib.request.Request(
               url,
               headers={
-                  "User-Agent": "Mozilla/5.0",
+                  "X-API-Key": api_key,
+                  "User-Agent": "mutts-greyhound-feed/1.0",
                   "Accept": "application/json",
               },
           )
@@ -166,17 +173,35 @@ jobs:
               )
 
           payload = json.loads(body)
-          text = json.dumps(payload)
+          text = json.dumps(payload).lower()
           print("Top-level type:", type(payload).__name__)
           if isinstance(payload, dict):
               print("Top-level fields:", sorted(payload.keys()))
-          print("Response preview:")
-          print(json.dumps(payload, indent=2)[:10000])
 
-          if "sportsbet" not in text.lower():
+          def sportsbet_records(value):
+              found = []
+              if isinstance(value, dict):
+                  if any(
+                      "sportsbet" in str(item).lower()
+                      for item in value.values()
+                  ):
+                      found.append(value)
+                  for item in value.values():
+                      found.extend(sportsbet_records(item))
+              elif isinstance(value, list):
+                  for item in value:
+                      found.extend(sportsbet_records(item))
+              return found
+
+          matches = sportsbet_records(payload)
+          print(f"Sportsbet records found: {len(matches)}")
+          for match in matches[:10]:
+              print(json.dumps(match, separators=(",", ":"))[:1000])
+
+          if "sportsbet" not in text:
               raise SystemExit(
-                  "FAIL: Demo racing response did not contain a Sportsbet price"
+                  "FAIL: Authenticated greyhound response contained no Sportsbet prices"
               )
 
-          print("PASS: Free aggregator returned Sportsbet racing prices")
+          print("PASS: PuntersEdge returned Sportsbet greyhound prices")
           PY
