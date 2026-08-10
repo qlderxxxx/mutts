@@ -1,0 +1,82 @@
+name: Test Greyhound Recorder routes
+
+on:
+  push:
+    paths:
+      - '.github/workflows/test-greyhound-recorder-routes.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-routes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Test public HTML and JSON routes without a browser
+        shell: bash
+        run: |
+          python - <<'PY'
+          import urllib.error
+          import urllib.request
+
+          BASE = "https://www.thegreyhoundrecorder.com.au"
+          PATHS = [
+              "/form-guides/",
+              "/form-guides/sandown-park",
+              "/form-guides/sandown-park-20260810/fields/",
+              "/results/sandown-park/20260809/",
+              "/wp-json/",
+              "/robots.txt",
+          ]
+          HEADERS = {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/127.0.0.0 Safari/537.36",
+              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                        "application/json;q=0.8,*/*;q=0.7",
+              "Accept-Language": "en-AU,en;q=0.9",
+          }
+
+          accessible = []
+          for path in PATHS:
+              url = BASE + path
+              request = urllib.request.Request(url, headers=HEADERS)
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      body = response.read()
+                      status = response.status
+                      content_type = response.headers.get("content-type")
+              except urllib.error.HTTPError as error:
+                  body = error.read()
+                  status = error.code
+                  content_type = error.headers.get("content-type")
+
+              lower = body.lower()
+              challenged = (
+                  b"checking your browser" in lower
+                  or b"challenges.cloudflare.com" in lower
+                  or b"cf-turnstile" in lower
+                  or b"just a moment" in lower
+              )
+              has_race_content = (
+                  b"form-guide-field-event" in lower
+                  or b"meeting-list__title" in lower
+                  or b"race fields" in lower
+              )
+              print(
+                  f"{path} | HTTP {status} | {content_type} | "
+                  f"bytes={len(body)} | challenge={challenged} | "
+                  f"race_content={has_race_content}"
+              )
+              if status == 200 and has_race_content and not challenged:
+                  accessible.append(path)
+
+          print("Accessible live race-data routes:", accessible)
+          if not accessible:
+              raise SystemExit(
+                  "FAIL: No alternate Greyhound Recorder route bypasses the site-wide challenge"
+              )
+          PY
