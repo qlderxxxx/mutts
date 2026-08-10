@@ -64,9 +64,14 @@ jobs:
               if params:
                   url += "?" + urllib.parse.urlencode(params)
               request = urllib.request.Request(url, headers=headers or {})
-              with urllib.request.urlopen(request, timeout=45) as response:
-                  body = response.read()
-                  print(f"HTTP {response.status} {path}; bytes={len(body)}")
+              try:
+                  with urllib.request.urlopen(request, timeout=45) as response:
+                      body = response.read()
+                      print(f"HTTP {response.status} {path}; bytes={len(body)}")
+              except Exception as error:
+                  body = error.read() if hasattr(error, "read") else b""
+                  print(f"ERROR {path}: {error}; body={body.decode('utf-8', 'replace')[:3000]}")
+                  raise
               return json.loads(body)
 
           pe_headers = {
@@ -91,7 +96,7 @@ jobs:
           pe_events_raw = get_json(
               "https://puntersedge.online/api",
               "/v1/racing/events",
-              {"hours_ahead": 48},
+              None,
               pe_headers,
           )
           pe_races_raw = get_json(
