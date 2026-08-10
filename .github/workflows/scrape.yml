@@ -16,6 +16,12 @@ on:
 permissions:
   contents: read
 
+# Supabase updates delete and recreate each race card, so overlapping runs must
+# queue rather than write the same race at the same time.
+concurrency:
+  group: greyhound-race-ingestion
+  cancel-in-progress: false
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
