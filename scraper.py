@@ -202,10 +202,17 @@ def fetch_pointsbet_races() -> List[Dict]:
                 continue
             if "vacant" in str(dog_name).lower():
                 continue
+            pointsbet_price = (source_runner.get("fluctuations") or {}).get("current")
+            try:
+                pointsbet_price = float(pointsbet_price)
+            except (TypeError, ValueError):
+                pointsbet_price = None
             runners.append({
                 "dog_name": dog_name,
                 "box_number": box,
-                "ghr_odds": None,
+                # Keep the existing database/frontend field name for compatibility.
+                # It now displays the accessible PointsBet fixed-win price.
+                "ghr_odds": pointsbet_price,
                 "sportsbet_odds": None,
                 "is_scratched": bool(source_runner.get("isScratched", False)),
             })
