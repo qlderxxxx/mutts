@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 jobs:
   compare-feeds:
@@ -15,6 +16,7 @@ jobs:
     timeout-minutes: 10
     env:
       PUNTERS_EDGE_API_KEY: ${{ secrets.PUNTERS_EDGE_API_KEY }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Compare PuntersEdge with complete PointsBet race list
@@ -31,6 +33,31 @@ jobs:
           KEY = os.environ.get("PUNTERS_EDGE_API_KEY")
           if not KEY:
               raise SystemExit("FAIL: PUNTERS_EDGE_API_KEY is not configured")
+
+          def publish_status(state, description):
+              token = os.environ.get("GH_TOKEN")
+              repo = os.environ.get("GITHUB_REPOSITORY")
+              sha = os.environ.get("GITHUB_SHA")
+              if not token or not repo or not sha:
+                  return
+              body = json.dumps({
+                  "state": state,
+                  "context": "PuntersEdge coverage",
+                  "description": description[:140],
+              }).encode()
+              request = urllib.request.Request(
+                  f"https://api.github.com/repos/{repo}/statuses/{sha}",
+                  data=body,
+                  method="POST",
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "Content-Type": "application/json",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  print(f"Published commit status: HTTP {response.status}")
 
           def get_json(base, path, params=None, headers=None):
               url = base + path
@@ -236,11 +263,17 @@ jobs:
                   f"only {len(races_with_sportsbet)} races contained numeric Sportsbet prices"
               )
 
+          status_description = (
+              f"PB {pb_total}; events {len(pe_events)}; NTG {len(pe_races)}; "
+              f"runners {len(races_with_runners)}; Sportsbet {len(races_with_sportsbet)}"
+          )
           if failures:
+              publish_status("failure", status_description)
               print("RESULT: PuntersEdge cannot safely be the sole complete-race feed")
               for failure in failures:
                   print("FAIL:", failure)
               raise SystemExit(1)
 
+          publish_status("success", status_description)
           print("PASS: PuntersEdge has enough complete coverage to be the primary feed")
           PY
