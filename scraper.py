@@ -286,7 +286,6 @@ def enrich_sportsbet_prices(races: List[Dict], price_races: List[Dict]) -> int:
             ) if race_time else 0,
         )
 
-        prices_by_box = {}
         prices_by_name = {}
         for price_runner in price_race.get("runners") or []:
             sportsbet = next(
@@ -304,16 +303,14 @@ def enrich_sportsbet_prices(races: List[Dict], price_races: List[Dict]) -> int:
                 sportsbet = float(sportsbet)
             except (TypeError, ValueError):
                 continue
-            box = price_runner.get("number")
-            if box is not None:
-                prices_by_box[int(box)] = sportsbet
             prices_by_name[_normalise_name(price_runner.get("name"))] = sportsbet
 
         race_enriched = 0
         for runner in race["runners"]:
-            price = prices_by_box.get(runner["box_number"])
-            if price is None:
-                price = prices_by_name.get(_normalise_name(runner["dog_name"]))
+            # Provider runner numbers are not guaranteed to represent the same
+            # box. Match the dog itself so a valid price cannot land on the
+            # wrong runner merely because the numbering conventions differ.
+            price = prices_by_name.get(_normalise_name(runner["dog_name"]))
             if price is not None:
                 runner["sportsbet_odds"] = price
                 race_enriched += 1
