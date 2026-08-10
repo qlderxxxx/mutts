@@ -91,7 +91,7 @@ jobs:
           pe_events_raw = get_json(
               "https://puntersedge.online/api",
               "/v1/racing/events",
-              {"categories": "greyhound", "hours_ahead": 48},
+              {"hours_ahead": 48},
               pe_headers,
           )
           pe_races_raw = get_json(
