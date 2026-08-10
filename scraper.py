@@ -1,25 +1,30 @@
 #!/usr/bin/env python3
 """
-Greyhound Micro-Field Finder - Web Scraper
-Scrapes race data from The Greyhound Recorder and stores in Supabase
+Greyhound Micro-Field Finder backend ingestion.
+
+PointsBet supplies the complete Australian greyhound programme and fields.
+PuntersEdge enriches approaching races with genuine Sportsbet win prices.
+The existing Supabase schema is preserved for frontend compatibility.
 """
 
 import os
 import sys
 import re
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from typing import List, Dict, Optional
 import requests
-from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 from supabase import create_client, Client
 
-# AEST timezone (UTC+11 during daylight saving)
-AEST = timezone(timedelta(hours=11))
+# Sydney local time, including daylight-saving transitions.
+AEST = ZoneInfo("Australia/Sydney")
 
 
 # Configuration
 FORM_GUIDE_URL = "https://www.thegreyhoundrecorder.com.au/form-guides/"
+POINTSBET_BASE_URL = "https://api.au.pointsbet.com"
+PUNTERS_EDGE_BASE_URL = "https://puntersedge.online/api"
 
 # Initialize Supabase client
 # Fallback for dev/local scripts if env vars missing
@@ -54,6 +59,264 @@ def get_supabase():
 # OR we update usage sites. 
 # Updating usage sites is safer.
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY) if (SUPABASE_URL and SUPABASE_KEY) else None
+
+
+def _iso_utc(value: datetime) -> str:
+    """Return the UTC timestamp format expected by the PointsBet API."""
+    return value.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _normalise_name(value: object) -> str:
+    """Normalise venue and runner names for cross-provider matching."""
+    return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
+
+
+def _parse_utc(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def _api_get(base_url: str, path: str, params=None, headers=None):
+    """Fetch JSON with a bounded timeout and a useful source-specific error."""
+    url = f"{base_url}{path}"
+    response = requests.get(url, params=params, headers=headers or {}, timeout=45)
+    response.raise_for_status()
+    print(f"HTTP {response.status_code} {path}; bytes={len(response.content)}")
+    return response.json()
+
+
+def _extract_distance(race: Dict, summary: Dict) -> Optional[int]:
+    """Handle the distance variants seen across PointsBet race responses."""
+    for source in (race, summary):
+        for key in ("distance", "distanceMeters", "raceDistance", "raceDistanceMeters"):
+            value = source.get(key)
+            if isinstance(value, dict):
+                value = (
+                    value.get("metres")
+                    or value.get("meters")
+                    or value.get("value")
+                )
+            if value is None:
+                continue
+            match = re.search(r"\d+", str(value))
+            if match:
+                return int(match.group())
+    return None
+
+
+def fetch_pointsbet_races() -> List[Dict]:
+    """Fetch every upcoming Australian greyhound race for today and tomorrow."""
+    now_utc = datetime.now(timezone.utc)
+    local_now = now_utc.astimezone(AEST)
+    local_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    local_end = local_start + timedelta(days=2)
+
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-AU,en;q=0.9",
+        "Origin": "https://pointsbet.com.au",
+        "Referer": "https://pointsbet.com.au/",
+    }
+    payload = _api_get(
+        POINTSBET_BASE_URL,
+        "/api/racing/v4/meetings",
+        {"startDate": _iso_utc(local_start), "endDate": _iso_utc(local_end)},
+        headers,
+    )
+    groups = payload if isinstance(payload, list) else payload.get("meetings", [])
+
+    summaries: Dict[str, Dict] = {}
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        for meeting in group.get("meetings") or []:
+            if meeting.get("racingType") != 4 or meeting.get("countryCode") != "AUS":
+                continue
+            for race in meeting.get("races") or []:
+                race_id = race.get("raceId")
+                start = race.get("advertisedStartDateTimeUtc")
+                start_dt = _parse_utc(start)
+                # Do not overwrite previously resulted rows. A short grace period
+                # keeps a just-jumped race stable during an hourly run.
+                if not race_id or not start_dt or start_dt < now_utc - timedelta(minutes=20):
+                    continue
+                summaries[str(race_id)] = {
+                    **race,
+                    "meeting_name": meeting.get("venue") or meeting.get("name"),
+                    "race_number": race.get("raceNumber"),
+                    "race_time": start,
+                }
+
+    race_ids = list(summaries)
+    print(f"PointsBet upcoming Australian greyhound races: {len(race_ids)}")
+    cards: List[Dict] = []
+    for offset in range(0, len(race_ids), 20):
+        batch = _api_get(
+            POINTSBET_BASE_URL,
+            "/api/racing/v3/races",
+            {"raceIds": ",".join(race_ids[offset:offset + 20])},
+            headers,
+        )
+        if isinstance(batch, list):
+            cards.extend(batch)
+        elif isinstance(batch, dict) and isinstance(batch.get("races"), list):
+            cards.extend(batch["races"])
+        elif isinstance(batch, dict) and batch.get("raceId"):
+            cards.append(batch)
+
+    races: List[Dict] = []
+    for card in cards:
+        summary = summaries.get(str(card.get("raceId")), {})
+        meeting_name = card.get("venue") or summary.get("meeting_name")
+        race_number = card.get("number") or card.get("raceNumber") or summary.get("race_number")
+        race_time = (
+            card.get("advertisedStartTimeUtc")
+            or card.get("advertisedStartDateTimeUtc")
+            or summary.get("race_time")
+        )
+        if not meeting_name or not race_number or not race_time:
+            print(f"Skipping incomplete PointsBet race card: raceId={card.get('raceId')}")
+            continue
+
+        runners = []
+        for source_runner in card.get("runners") or []:
+            box = source_runner.get("number") or source_runner.get("barrier")
+            try:
+                box = int(box)
+            except (TypeError, ValueError):
+                continue
+            # Boxes 9/10 are reserves, not active Australian starters. Excluding
+            # them also keeps the frontend's runner count consistent.
+            if not 1 <= box <= 8:
+                continue
+            dog_name = source_runner.get("runnerName") or source_runner.get("name")
+            if not dog_name:
+                continue
+            runners.append({
+                "dog_name": dog_name,
+                "box_number": box,
+                "ghr_odds": None,
+                "sportsbet_odds": None,
+                "is_scratched": bool(source_runner.get("isScratched", False)),
+            })
+
+        active_count = sum(1 for runner in runners if not runner["is_scratched"])
+        races.append({
+            "meeting_name": meeting_name,
+            "meeting_url": (
+                f"{POINTSBET_BASE_URL}/api/racing/v3/races?raceIds={card.get('raceId')}"
+            ),
+            "race_number": int(race_number),
+            "race_time": race_time,
+            "distance_meters": _extract_distance(card, summary),
+            "status": "upcoming",
+            "active_runner_count": active_count,
+            "runners": runners,
+        })
+
+    if len(races) != len(race_ids):
+        print(f"WARNING: requested {len(race_ids)} race cards but prepared {len(races)}")
+    return races
+
+
+def fetch_puntersedge_races() -> List[Dict]:
+    """Fetch the maximum supported next-to-go greyhound price window."""
+    api_key = os.environ.get("PUNTERS_EDGE_API_KEY")
+    if not api_key:
+        print("PUNTERS_EDGE_API_KEY is not set; continuing without Sportsbet prices")
+        return []
+    payload = _api_get(
+        PUNTERS_EDGE_BASE_URL,
+        "/v1/racing/next-to-go",
+        {"categories": "greyhound", "num_races": 50},
+        {
+            "X-API-Key": api_key,
+            "Accept": "application/json",
+            "User-Agent": "mutts-greyhound-feed/1.0",
+        },
+    )
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        for key in ("races", "events", "data", "results"):
+            if isinstance(payload.get(key), list):
+                return payload[key]
+    return []
+
+
+def enrich_sportsbet_prices(races: List[Dict], price_races: List[Dict]) -> int:
+    """Merge only genuine Sportsbet prices into the legacy frontend field."""
+    by_race = {}
+    for price_race in price_races:
+        key = (
+            _normalise_name(price_race.get("venue")),
+            int(price_race.get("race_number") or 0),
+        )
+        by_race.setdefault(key, []).append(price_race)
+
+    enriched_runners = 0
+    enriched_races = 0
+    for race in races:
+        key = (_normalise_name(race["meeting_name"]), int(race["race_number"]))
+        candidates = by_race.get(key, [])
+        if not candidates:
+            continue
+        race_time = _parse_utc(race.get("race_time"))
+        price_race = min(
+            candidates,
+            key=lambda item: abs(
+                ((_parse_utc(item.get("start_time")) or race_time) - race_time).total_seconds()
+            ) if race_time else 0,
+        )
+
+        prices_by_box = {}
+        prices_by_name = {}
+        for price_runner in price_race.get("runners") or []:
+            sportsbet = next(
+                (
+                    bookmaker.get("win_price")
+                    for bookmaker in price_runner.get("bookmakers") or []
+                    if str(bookmaker.get("key", "")).lower() == "sportsbet"
+                    and bookmaker.get("win_price") is not None
+                ),
+                None,
+            )
+            if sportsbet is None:
+                continue
+            try:
+                sportsbet = float(sportsbet)
+            except (TypeError, ValueError):
+                continue
+            box = price_runner.get("number")
+            if box is not None:
+                prices_by_box[int(box)] = sportsbet
+            prices_by_name[_normalise_name(price_runner.get("name"))] = sportsbet
+
+        race_enriched = 0
+        for runner in race["runners"]:
+            price = prices_by_box.get(runner["box_number"])
+            if price is None:
+                price = prices_by_name.get(_normalise_name(runner["dog_name"]))
+            if price is not None:
+                runner["sportsbet_odds"] = price
+                race_enriched += 1
+        if race_enriched:
+            enriched_races += 1
+            enriched_runners += race_enriched
+
+    print(
+        f"Sportsbet enrichment: {enriched_runners} runners across "
+        f"{enriched_races} races"
+    )
+    return enriched_runners
 
 
 
@@ -695,7 +958,23 @@ def scrape_meeting_fields(meeting_url: str, meeting_name: str) -> List[Dict]:
 
 
 def scrape_form_guides() -> List[Dict]:
-    """Scrape all races from the form guides page"""
+    """Build the frontend-compatible race feed from accessible APIs."""
+    all_races = fetch_pointsbet_races()
+    if not all_races:
+        return []
+
+    try:
+        price_races = fetch_puntersedge_races()
+        enrich_sportsbet_prices(all_races, price_races)
+    except Exception as error:
+        # Complete race coverage is more important than optional price
+        # enrichment. A transient PuntersEdge issue must not erase the feed.
+        print(f"PuntersEdge enrichment failed: {error}")
+
+    return all_races
+
+    # Legacy Greyhound Recorder parser retained temporarily for reference.
+    # It is unreachable because Cloudflare blocks GitHub-hosted runners.
     all_races = []
     
     soup = fetch_page(FORM_GUIDE_URL)
@@ -793,18 +1072,20 @@ def upsert_race_data(race_data: Dict) -> None:
         # Delete existing runners for this race (to handle scratchings)
         supabase.table('runners').delete().eq('race_id', race_id).execute()
         
-        # Insert runners
+        # Insert all runners in one request. This preserves the frontend schema
+        # while avoiding thousands of individual HTTP writes per full programme.
+        runner_records = []
         for runner in race_data['runners']:
-            runner_record = {
+            runner_records.append({
                 'race_id': race_id,
                 'dog_name': runner['dog_name'],
                 'box_number': runner['box_number'],
                 'ghr_odds': runner['ghr_odds'],
                 'sportsbet_odds': runner['sportsbet_odds'],
                 'is_scratched': runner['is_scratched']
-            }
-            
-            supabase.table('runners').insert(runner_record).execute()
+            })
+        if runner_records:
+            supabase.table('runners').insert(runner_records).execute()
         
         print(f"Upserted: {race_data['meeting_name']} R{race_data['race_number']}")
         
@@ -947,7 +1228,22 @@ def main():
     # Upsert to Supabase
     for race in all_races:
         upsert_race_data(race)
+
+    micro_fields = [r for r in all_races if r['active_runner_count'] in [4, 5]]
+    priced_races = sum(
+        1 for race in all_races
+        if any(runner.get('sportsbet_odds') for runner in race['runners'])
+    )
+    print("\n" + "=" * 60)
+    print("Ingestion complete!")
+    print(f"Total upcoming races stored: {len(all_races)}")
+    print(f"Micro-fields (4-5 runners): {len(micro_fields)}")
+    print(f"Races with Sportsbet prices: {priced_races}")
+    print("=" * 60)
+    return
     
+    # Legacy Greyhound Recorder result scraping retained temporarily for
+    # reference. It is unreachable while GitHub is blocked by Cloudflare.
     # Scrape results for historical races (today and yesterday)
     print(f"\n--- Scraping historical results ---")
     
